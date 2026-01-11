@@ -12,6 +12,9 @@ STATIC_DIR = APP_DIR / "static"
 UPLOADS_DIR = STATIC_DIR / "uploads"
 RESULTS_DIR = STATIC_DIR / "results"
 
+THEMES_DIR = APP_DIR / "modules" / "themes" / "data"
+THEMES_JSON = THEMES_DIR / "themes.json"
+
 DATA_DIR = PROJECT_DIR / "data"
 DB_PATH = DATA_DIR / "app.db"
 

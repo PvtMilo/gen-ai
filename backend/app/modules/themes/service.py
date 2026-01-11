@@ -1,22 +1,27 @@
+# app/modules/themes/service.py
 import json
-from pathlib import Path
 from typing import List, Optional
 
-from app.modules.themes.schema import ThemeOut
+from app.core.config import THEMES_JSON
+from app.modules.themes.schema import ThemeInternal, ThemePublicOut
 
-def _themes_file_path() -> Path:
-    # .../backend/app/modules/themes/data/themes.json
-    return Path(__file__).resolve().parent / "data" / "themes.json"
 
-def list_themes() -> List[ThemeOut]:
-    path = _themes_file_path()
-    with path.open("r", encoding="utf-8") as f:
-        raw = json.load(f)
+def _load_themes_internal() -> List[ThemeInternal]:
+    data = json.loads(THEMES_JSON.read_text(encoding="utf-8"))
 
-    return [ThemeOut(**item) for item in raw]
+    if not isinstance(data, list):
+        raise ValueError("themes.json must contain a JSON array (list)")
 
-def get_theme_by_id(theme_id: str) -> Optional[ThemeOut]:
-    for theme in list_themes():
-        if theme.id == theme_id:
-            return theme
+    # ✅ convert dict -> ThemeInternal (punya method to_public)
+    return [ThemeInternal(**item) for item in data]
+
+
+def list_themes_public() -> List[ThemePublicOut]:
+    return [t.to_public() for t in _load_themes_internal()]
+
+
+def get_theme_by_id(theme_id: str) -> Optional[ThemeInternal]:
+    for t in _load_themes_internal():
+        if t.id == theme_id:
+            return t
     return None

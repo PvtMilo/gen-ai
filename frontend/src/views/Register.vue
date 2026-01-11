@@ -1,0 +1,38 @@
+<script setup>
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { useSeedDreamStore } from "../stores/seeddreamStore";
+
+const router = useRouter();
+const store = useSeedDreamStore();
+
+const name = ref("");
+const email = ref("");
+const phone = ref("");
+
+const submit = async () => {
+  await store.beginSession({
+    name: name.value,
+    email: email.value,
+    phone: phone.value,
+  });
+
+  router.push({ name: "ThemeSelection" });
+};
+</script>
+
+<template>
+  <h1>Register</h1>
+
+  <div style="display:flex; flex-direction:column; gap:8px; max-width:320px;">
+    <input v-model="name" placeholder="Name" />
+    <input v-model="email" placeholder="Email" />
+    <input v-model="phone" placeholder="Phone" />
+
+    <button @click="submit" :disabled="store.loadingSession">
+      {{ store.loadingSession ? "Creating session..." : "Next" }}
+    </button>
+
+    <p v-if="store.error" style="color:red;">{{ store.error }}</p>
+  </div>
+</template>
