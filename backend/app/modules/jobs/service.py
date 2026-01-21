@@ -139,8 +139,8 @@ def process_job_seeddream_safe(job_id: int) -> None:
         result_url = generate_i2i_url(
             prompt=prompt,
             image_data_url=image_data_url,
-            size="2K",
-            watermark=False,
+            size="2400x3600",
+            watermark=True,
         )
 
         dt = time.time() - t0

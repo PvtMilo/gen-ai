@@ -8,7 +8,6 @@ class ThemePublicOut(BaseModel):
     thumbnail_url: Optional[str] = None
     params: Dict[str, Any] = Field(default_factory=dict)
 
-# === yang dipakai backend (internal) ===
 class ThemeInternal(BaseModel):
     id: str
     title: str

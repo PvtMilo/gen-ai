@@ -12,7 +12,6 @@ def _load_themes_internal() -> List[ThemeInternal]:
     if not isinstance(data, list):
         raise ValueError("themes.json must contain a JSON array (list)")
 
-    # ✅ convert dict -> ThemeInternal (punya method to_public)
     return [ThemeInternal(**item) for item in data]
 
 

@@ -7,12 +7,12 @@
     "negative_prompt": "low quality, blurry, deformed face, extra fingers",
     "params": { "aspect_ratio": "2:3" }
   },
-  {
-    "id": "futuristic-city",
-    "title": "Futuristic City",
-    "thumbnail": "/static/thumbs/futuristic-city.jpeg",
-    "prompt": "Photorealistic HIGH-END transformation into a BRIGHT, vibrant futuristic neon city (not dark). Works for SOLO or GROUP photos. STRICT RULES (per person): do NOT change face identity, do NOT change facial features, do NOT change expression, do NOT change pose, do NOT change body proportions, do NOT change camera angle or framing. Preserve hair/headwear exactly as in the original (if hijab/headscarf exists, keep it; if hair is visible, keep the hairstyle). CHANGE ONLY: outfit and environment. Outfit: premium futuristic techwear/cyberpunk clothing tailored to each person's existing silhouette and modesty level, with hyper-real fabric detail (weave, stitching, seams, zippers), believable thickness/weight, and natural folds. Background: clean futuristic city with colorful neon signage, bright ambient glow, reflective surfaces, subtle mist, soft bokeh lights, depth-of-field. QUALITY PRIORITY: ultra-detailed faces and eyes without altering identity, crisp skin texture (pores), accurate edge detail around hair/hijab, realistic micro-contrast, natural sharpening (no oversharpen), high dynamic range, 8k-quality detail, editorial commercial lighting: flattering bright key light on all subjects, balanced exposure, consistent shadows across the group, gentle neon rim light, correct perspective/scale, realistic reflections, seamless blending (no cutout look), vibrant but natural color grading.",
-    "negative_prompt": "low quality, low detail, soft faces, loss of detail, pixelated, blurry, face change, identity change, altered expression, altered pose, altered body proportions, long neck, stretched neck, warped anatomy, height/weight change, head size change, extra limbs, extra fingers, bad hands, mangled hands, misaligned eyes, cross-eyed, plastic skin, waxy skin, over-smoothed skin, harsh edge halos, cutout look, inconsistent lighting between people, wrong shadow direction, incorrect perspective, oversharpen, heavy noise, dark scene, underexposed, text, watermark, logo, caption, jpeg artifacts",
-    "params": { "aspect_ratio": "2:3" }
-  }
+{
+  "id": "cyberpunk-city",
+  "title": "Cyberpunk City",
+  "thumbnail": "/static/thumbs/futuristic-city.jpeg",
+  "prompt": "turn 11 people into Roman soldiers, keep same pose/composition, Roman armor only (bronze/gold cuirass, red tunic, leather skirt straps, sandals), red capes, Roman helmets with red plumes, hold Roman spears or swords, keep faces the same and blend lighting/color to match, background: bright ancient Roman city courtyard with grand classical temple buildings, tall stone columns, marble plaza, warm daylight, soft shadows, cinematic wide scene, realistic, sharp focus, no distortions",
+  "params": { "aspect_ratio": "2:3" }
+}
+
 ]

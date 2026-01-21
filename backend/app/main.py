@@ -19,7 +19,6 @@ def ensure_dirs():
 
 app = FastAPI(title="AI Generative API")
 
-# CORS supaya Vue bisa akses backend saat dev
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -31,7 +30,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# include router (pastikan prefix hanya di salah satu tempat)
 app.include_router(api_router)
 
 # static mount
