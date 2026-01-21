@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useSeedDreamStore } from "../stores/seeddreamStore";
 import CameraCapture from "../components/CameraCapture.vue";
@@ -7,60 +7,205 @@ import CameraCapture from "../components/CameraCapture.vue";
 const router = useRouter();
 const store = useSeedDreamStore();
 const fileRef = ref(null);
+const cameraRef = ref(null);
+
+const capturedPhotoUrl = ref(null);
+const captureError = ref(null);
+const capturing = ref(false);
+const uploadingManual = ref(false);
+const uploadingCapture = ref(false);
+
+const assetBase = (import.meta.env.VITE_ASSET_BASE || "http://127.0.0.1:8000").replace(/\/$/, "");
+
+const hasCapturedPhoto = computed(() => Boolean(capturedPhotoUrl.value));
+const isCameraBusy = computed(() => capturing.value || uploadingCapture.value);
+
+function ensureSession() {
+  if (!store.session) {
+    router.replace({ name: "Register" });
+    return false;
+  }
+  if (!store.session.theme_id) {
+    router.replace({ name: "ThemeSelection" });
+    return false;
+  }
+  return true;
+}
+
+function resolvePhotoUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  const prefix = url.startsWith("/") ? "" : "/";
+  return `${assetBase}${prefix}${url}`;
+}
+
+async function photoUrlToFile(photoUrl) {
+  const targetUrl = resolvePhotoUrl(photoUrl);
+  const res = await fetch(targetUrl);
+  if (!res.ok) throw new Error(`Failed to fetch captured photo (${res.status})`);
+  const blob = await res.blob();
+  const cleanUrl = photoUrl.split("?")[0];
+  const baseName = cleanUrl.split("/").pop();
+  const extFromType = blob.type?.split("/")[1] || "jpg";
+  const fileName =
+    baseName && baseName.includes(".")
+      ? baseName
+      : `camera_${Date.now()}.${extFromType}`;
+  return new File([blob], fileName, { type: blob.type || "image/jpeg" });
+}
 
 async function onUpload() {
-  if (!store.session) return router.replace({ name: "Register" });
-  if (!store.session.theme_id)
-    return router.replace({ name: "ThemeSelection" });
+  if (!ensureSession()) return;
 
   const file = fileRef.value?.files?.[0];
   if (!file) return alert("Pilih file dulu");
 
-  await store.uploadPhoto(file);
-  router.push({ name: "Loading" });
+  uploadingManual.value = true;
+  try {
+    await store.uploadPhoto(file);
+    router.push({ name: "Loading" });
+  } catch (_) {
+    // store.error sudah di-set
+  } finally {
+    uploadingManual.value = false;
+  }
 }
 
-const goNext = () => router.push({ name: "Loading" });
 const goBack = () => router.push({ name: "ThemeSelection" });
 
-const handleCapture = () => {
-  if (cameraRef.value) {
-    cameraRef.value.takePhoto();
+const handleCapture = async () => {
+  if (!cameraRef.value) return;
+  capturing.value = true;
+  captureError.value = null;
+  try {
+    await cameraRef.value.takePhoto();
+  } catch (err) {
+    captureError.value = err?.message || "Gagal capture foto.";
+  } finally {
+    capturing.value = false;
   }
 };
 
 const handleRetake = () => {
-  if (cameraRef.value) {
-    cameraRef.value.retakeCamera();
+  captureError.value = null;
+  capturedPhotoUrl.value = null;
+  cameraRef.value?.retakeCamera();
+};
+
+const handleRetakeEvent = () => {
+  captureError.value = null;
+  capturedPhotoUrl.value = null;
+};
+
+const handleUsePhoto = async () => {
+  if (!ensureSession()) return;
+  if (!capturedPhotoUrl.value) return;
+
+  uploadingCapture.value = true;
+  captureError.value = null;
+  try {
+    const file = await photoUrlToFile(capturedPhotoUrl.value);
+    await store.uploadPhoto(file);
+    router.push({ name: "Loading" });
+  } catch (err) {
+    captureError.value = err?.message || "Upload gagal.";
+  } finally {
+    uploadingCapture.value = false;
   }
+};
+
+const handleCaptured = (payload) => {
+  capturedPhotoUrl.value = payload?.photoUrl || null;
+  captureError.value = null;
+};
+
+const handleCaptureError = (err) => {
+  captureError.value = err?.message || "Gagal capture foto.";
 };
 </script>
 
 <template>
   <div class="page">
-    <div class="camera-wrapper">
-      <CameraCapture ref="cameraRef" />
+    <h1>Upload Photo</h1>
+
+    <p v-if="store.error" class="error">{{ store.error }}</p>
+
+    <section class="camera-wrapper">
+      <h2>Camera</h2>
+
+      <CameraCapture
+        ref="cameraRef"
+        @captured="handleCaptured"
+        @retake="handleRetakeEvent"
+        @error="handleCaptureError"
+      />
 
       <div class="camera-btn-wrapper">
-        <!-- Button kiri -->
-        <button class="btn" @click="state.photoUrl ? handleRetake() : goBack()">
-          {{ state.photoUrl ? "Retake" : "Back" }}
-        </button>
-
-        <!-- Button kanan -->
         <button
           class="btn"
-          @click="state.photoUrl ? goNext() : handleCapture()"
+          :disabled="isCameraBusy"
+          @click="hasCapturedPhoto ? handleRetake() : goBack()"
         >
-          {{ state.photoUrl ? "Next" : "Capture" }}
+          {{ hasCapturedPhoto ? "Retake" : "Back" }}
+        </button>
+
+        <button
+          class="btn"
+          :disabled="isCameraBusy"
+          @click="hasCapturedPhoto ? handleUsePhoto() : handleCapture()"
+        >
+          {{
+            hasCapturedPhoto
+              ? uploadingCapture
+                ? "Uploading..."
+                : "Next"
+              : capturing
+                ? "Capturing..."
+                : "Capture"
+          }}
         </button>
       </div>
-    </div>
+
+      <p v-if="captureError" class="error">{{ captureError }}</p>
+    </section>
+
+    <section class="manual-upload">
+      <h2>Manual Upload</h2>
+      <input type="file" ref="fileRef" accept="image/*" />
+      <button @click="onUpload" :disabled="uploadingManual">
+        {{ uploadingManual ? "Uploading..." : "Upload" }}
+      </button>
+    </section>
   </div>
-  <h1>Upload Photo</h1>
-
-  <p v-if="store.error" style="color: red">{{ store.error }}</p>
-
-  <input type="file" ref="fileRef" accept="image/*" />
-  <button @click="onUpload" :disabled="store.loading">Upload</button>
 </template>
+
+<style scoped>
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.camera-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.camera-btn-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.manual-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.error {
+  color: #c1121f;
+}
+</style>

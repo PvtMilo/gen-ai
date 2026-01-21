@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
+from app.api.v1.endpoints.camera import router as camera_router
 from app.db.session import engine
 from app.db.base import Base
 from app.core.config import UPLOADS_DIR, RESULTS_DIR, DATA_DIR
@@ -31,6 +32,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+app.include_router(camera_router)
 
 # static mount
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
