@@ -1,15 +1,17 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useSeedDreamStore } from "../stores/seeddreamStore";
 import CameraCapture from "../components/CameraCapture.vue";
+import WebcamCapture from "../components/WebcamCapture.vue";
 
 const router = useRouter();
 const store = useSeedDreamStore();
 const fileRef = ref(null);
-const cameraRef = ref(null);
+const captureRef = ref(null);
 
 const capturedPhotoUrl = ref(null);
+const capturedPhotoFile = ref(null);
 const captureError = ref(null);
 const capturing = ref(false);
 const uploadingManual = ref(false);
@@ -17,7 +19,15 @@ const uploadingCapture = ref(false);
 
 const assetBase = (import.meta.env.VITE_ASSET_BASE || "http://127.0.0.1:8000").replace(/\/$/, "");
 
-const hasCapturedPhoto = computed(() => Boolean(capturedPhotoUrl.value));
+const photoSource = computed(() => store.photoSource || "camera");
+const isCameraSource = computed(() => photoSource.value === "camera");
+const isWebcamSource = computed(() => photoSource.value === "webcam");
+const isManualSource = computed(() => photoSource.value === "manual");
+const captureTitle = computed(() => (isWebcamSource.value ? "Webcam" : "Camera"));
+
+const hasCapturedPhoto = computed(
+  () => Boolean(capturedPhotoUrl.value || capturedPhotoFile.value),
+);
 const isCameraBusy = computed(() => capturing.value || uploadingCapture.value);
 
 function ensureSession() {
@@ -74,11 +84,11 @@ async function onUpload() {
 const goBack = () => router.push({ name: "ThemeSelection" });
 
 const handleCapture = async () => {
-  if (!cameraRef.value) return;
+  if (!captureRef.value?.takePhoto) return;
   capturing.value = true;
   captureError.value = null;
   try {
-    await cameraRef.value.takePhoto();
+    await captureRef.value.takePhoto();
   } catch (err) {
     captureError.value = err?.message || "Gagal capture foto.";
   } finally {
@@ -89,22 +99,26 @@ const handleCapture = async () => {
 const handleRetake = () => {
   captureError.value = null;
   capturedPhotoUrl.value = null;
-  cameraRef.value?.retakeCamera();
+  capturedPhotoFile.value = null;
+  captureRef.value?.retakeCamera();
 };
 
 const handleRetakeEvent = () => {
   captureError.value = null;
   capturedPhotoUrl.value = null;
+  capturedPhotoFile.value = null;
 };
 
 const handleUsePhoto = async () => {
   if (!ensureSession()) return;
-  if (!capturedPhotoUrl.value) return;
+  if (!capturedPhotoUrl.value && !capturedPhotoFile.value) return;
 
   uploadingCapture.value = true;
   captureError.value = null;
   try {
-    const file = await photoUrlToFile(capturedPhotoUrl.value);
+    const file = capturedPhotoFile.value
+      ? capturedPhotoFile.value
+      : await photoUrlToFile(capturedPhotoUrl.value);
     await store.uploadPhoto(file);
     router.push({ name: "Loading" });
   } catch (err) {
@@ -115,13 +129,27 @@ const handleUsePhoto = async () => {
 };
 
 const handleCaptured = (payload) => {
-  capturedPhotoUrl.value = payload?.photoUrl || null;
   captureError.value = null;
+  if (payload?.file) {
+    capturedPhotoFile.value = payload.file;
+    capturedPhotoUrl.value = null;
+    return;
+  }
+  capturedPhotoUrl.value = payload?.photoUrl || null;
+  capturedPhotoFile.value = null;
 };
 
 const handleCaptureError = (err) => {
   captureError.value = err?.message || "Gagal capture foto.";
 };
+
+watch(photoSource, () => {
+  captureError.value = null;
+  capturedPhotoUrl.value = null;
+  capturedPhotoFile.value = null;
+  capturing.value = false;
+  uploadingCapture.value = false;
+});
 </script>
 
 <template>
@@ -130,11 +158,20 @@ const handleCaptureError = (err) => {
 
     <p v-if="store.error" class="error">{{ store.error }}</p>
 
-    <section class="camera-wrapper">
-      <h2>Camera</h2>
+    <section v-if="!isManualSource" class="camera-wrapper">
+      <h2>{{ captureTitle }}</h2>
 
       <CameraCapture
-        ref="cameraRef"
+        v-if="isCameraSource"
+        ref="captureRef"
+        @captured="handleCaptured"
+        @retake="handleRetakeEvent"
+        @error="handleCaptureError"
+      />
+
+      <WebcamCapture
+        v-else-if="isWebcamSource"
+        ref="captureRef"
         @captured="handleCaptured"
         @retake="handleRetakeEvent"
         @error="handleCaptureError"
@@ -169,7 +206,7 @@ const handleCaptureError = (err) => {
       <p v-if="captureError" class="error">{{ captureError }}</p>
     </section>
 
-    <section class="manual-upload">
+    <section v-if="isManualSource" class="manual-upload">
       <h2>Manual Upload</h2>
       <input type="file" ref="fileRef" accept="image/*" />
       <button @click="onUpload" :disabled="uploadingManual">

@@ -26,6 +26,7 @@ export const useSeedDreamStore = defineStore("seeddream", {
     themes: [],
     session: null,
     job: null,
+    photoSource: "webcam",
 
     loadingThemes: false,
     loadingSession: false,
@@ -39,8 +40,10 @@ export const useSeedDreamStore = defineStore("seeddream", {
       try {
         const s = localStorage.getItem("sd_session");
         const j = localStorage.getItem("sd_job");
+        const p = localStorage.getItem("sd_photo_source");
         if (s) this.session = JSON.parse(s);
         if (j) this.job = JSON.parse(j);
+        if (p) this.photoSource = p;
       } catch (_) {}
     },
 
@@ -48,6 +51,7 @@ export const useSeedDreamStore = defineStore("seeddream", {
       try {
         localStorage.setItem("sd_session", JSON.stringify(this.session));
         localStorage.setItem("sd_job", JSON.stringify(this.job));
+        localStorage.setItem("sd_photo_source", this.photoSource || "webcam");
       } catch (_) {}
     },
 
@@ -55,9 +59,11 @@ export const useSeedDreamStore = defineStore("seeddream", {
       this.themes = [];
       this.session = null;
       this.job = null;
+      this.photoSource = "webcam";
       this.error = null;
       localStorage.removeItem("sd_session");
       localStorage.removeItem("sd_job");
+      localStorage.removeItem("sd_photo_source");
     },
 
     async loadThemes() {
@@ -108,6 +114,13 @@ export const useSeedDreamStore = defineStore("seeddream", {
         this.error = extractErrorMessage(e, "SET_THEME_FAILED");
         throw e;
       }
+    },
+
+    setPhotoSource(source) {
+      const allowed = ["webcam", "camera", "manual"];
+      this.photoSource = allowed.includes(source) ? source : "webcam";
+      this.persist();
+      return this.photoSource;
     },
 
     async uploadPhoto(file) {

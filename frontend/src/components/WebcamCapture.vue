@@ -1,14 +1,18 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from "vue";
-import { onMounted } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
+
+const emit = defineEmits(["captured", "retake", "error"]);
 
 const videoDom = ref(null);
 const stream = ref(null);
-
-const photoBlob = ref(null);
 const previewUrl = ref(null);
 
-const isCamReady = computed(() => !!stream.value || !!videoDom.value);
+const stopCamera = () => {
+  if (stream.value) {
+    stream.value.getTracks().forEach((t) => t.stop());
+    stream.value = null;
+  }
+};
 
 const startCamera = async () => {
   try {
@@ -20,112 +24,114 @@ const startCamera = async () => {
       audio: false,
     });
   } catch (error) {
-    alert(error.message);
+    emit("error", error);
     return;
   }
+
+  if (!videoDom.value) return;
   videoDom.value.srcObject = stream.value;
-
-  // current webcam resolution size
-  const track = stream.value.getVideoTracks()[0];
-  console.log("Track settings:", track.getSettings());
-  videoDom.value.onloadedmetadata = () => {
-    console.log(
-      "Video element:",
-      videoDom.value.videoWidth,
-      "x",
-      videoDom.value.videoHeight,
-    );
-  };
+  await videoDom.value.play?.().catch(() => {});
 };
 
-const capture = async () => {
-  const video = videoDom.value;
-  if (!video) return;
+const takePhoto = async () => {
+  try {
+    const video = videoDom.value;
+    if (!video || !stream.value) throw new Error("Webcam belum siap.");
 
-  const canvas = document.createElement("canvas");
-  const targetRatio = 3 / 2;
+    const canvas = document.createElement("canvas");
+    const targetRatio = 3 / 2;
 
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
-  const videoRatio = vw / vh;
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (!vw || !vh) throw new Error("Webcam belum siap.");
 
-  let sx, sy, sw, sh;
+    const videoRatio = vw / vh;
 
-  if (videoRatio > targetRatio) {
-    // video terlalu lebar → crop kiri-kanan
-    sh = vh;
-    sw = Math.round(vh * targetRatio);
-    sx = Math.round((vw - sw) / 2);
-    sy = 0;
-  } else {
-    // video terlalu tinggi → crop atas-bawah
-    sw = vw;
-    sh = Math.round(vw / targetRatio);
-    sx = 0;
-    sy = Math.round((vh - sh) / 2);
+    let sx, sy, sw, sh;
+
+    if (videoRatio > targetRatio) {
+      // video terlalu lebar -> crop kiri-kanan
+      sh = vh;
+      sw = Math.round(vh * targetRatio);
+      sx = Math.round((vw - sw) / 2);
+      sy = 0;
+    } else {
+      // video terlalu tinggi -> crop atas-bawah
+      sw = vw;
+      sh = Math.round(vw / targetRatio);
+      sx = 0;
+      sy = Math.round((vh - sh) / 2);
+    }
+
+    const outW = sw;
+    const outH = sh;
+
+    canvas.width = outW;
+    canvas.height = outH;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outW, outH);
+
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (result) => {
+          if (!result) {
+            reject(new Error("Gagal mengambil foto."));
+            return;
+          }
+          resolve(result);
+        },
+        "image/jpeg",
+        1,
+      );
+    });
+
+    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
+    previewUrl.value = URL.createObjectURL(blob);
+
+    const file = new File([blob], `webcam_${Date.now()}.jpg`, {
+      type: blob.type || "image/jpeg",
+    });
+
+    stopCamera();
+    emit("captured", { file, previewUrl: previewUrl.value });
+  } catch (err) {
+    emit("error", err);
   }
-
-  // output canvas 2:3 (bisa kamu tentukan resolusinya)
-  const outW = sw;
-  const outH = sh;
-
-  canvas.width = outW;
-  canvas.height = outH;
-
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outW, outH);
-
-  canvas.toBlob(
-    (blob) => {
-      if (!blob) return;
-      photoBlob.value = blob;
-
-      if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
-      previewUrl.value = URL.createObjectURL(blob);
-    },
-    "image/jpeg",
-    1,
-  );
 };
 
-const reCapture = async () => {
-
+const retakeCamera = async () => {
   if (previewUrl.value) {
     URL.revokeObjectURL(previewUrl.value);
     previewUrl.value = null;
   }
 
-
-  if (stream.value) {
-    stream.value.getTracks().forEach((t) => t.stop());
-    stream.value = null;
-  }
-
-  await startCamera();
+  emit("retake");
+  if (!stream.value) await startCamera();
 };
 
 onBeforeUnmount(() => {
-  if (stream.value) stream.value.getTracks().forEach((t) => t.stop());
+  stopCamera();
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
 });
 
 onMounted(() => {
   startCamera();
 });
-</script>
-<template>
-  <div>
-    <div class="frame">
-      <video v-if="!previewUrl" ref="videoDom" autoplay playsinline></video>
-        <img v-else :src="previewUrl"  />
-      </div>
-    </div>
 
-    <div style="margin-top: 12px">
-      <button @click="capture" :disabled="!isCamReady">Capture</button>
-      <button v-if="previewUrl" @click="reCapture">Retake</button>
-    </div>
+defineExpose({
+  takePhoto,
+  retakeCamera,
+});
+</script>
+
+<template>
+  <div class="frame">
+    <video v-if="!previewUrl" ref="videoDom" autoplay playsinline></video>
+    <img v-else :src="previewUrl" />
+  </div>
 </template>
+
 <style>
 .frame {
   width: 100%;
