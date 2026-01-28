@@ -11,7 +11,7 @@
   "id": "cyberpunk-city",
   "title": "Cyberpunk City",
   "thumbnail": "/static/thumbs/futuristic-city.jpeg",
-  "prompt": "turn 11 people into Roman soldiers, keep same pose/composition, Roman armor only (bronze/gold cuirass, red tunic, leather skirt straps, sandals), red capes, Roman helmets with red plumes, hold Roman spears or swords, keep faces the same and blend lighting/color to match, background: bright ancient Roman city courtyard with grand classical temple buildings, tall stone columns, marble plaza, warm daylight, soft shadows, cinematic wide scene, realistic, sharp focus, no distortions",
+  "prompt": "turn this man into roman soldier and change the background",
   "params": { "aspect_ratio": "2:3" }
 }
 

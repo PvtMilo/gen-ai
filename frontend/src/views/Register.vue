@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useSeedDreamStore } from "../stores/seeddreamStore";
+import Setting from "./Setting.vue";
 
 const router = useRouter();
 const store = useSeedDreamStore();
@@ -19,11 +20,22 @@ const submit = async () => {
 
   router.push({ name: "ThemeSelection" });
 };
+
+const handleGallery = () => {
+  router.push({name : "PublicGallery"})
+}
+
+const handleSetting = () => {
+  router.push({name : "Setting"})
+}
 </script>
 
 <template>
   <h1>Register</h1>
-
+  <div>
+    <button @click="handleGallery">gallery</button>
+    <button @click="handleSetting">Setting</button>
+  </div>
   <div style="display:flex; flex-direction:column; gap:8px; max-width:320px;">
     <input v-model="name" placeholder="Name" />
     <input v-model="email" placeholder="Email" />
@@ -32,7 +44,6 @@ const submit = async () => {
     <button @click="submit" :disabled="store.loadingSession">
       {{ store.loadingSession ? "Creating session..." : "Next" }}
     </button>
-
     <p v-if="store.error" style="color:red;">{{ store.error }}</p>
   </div>
 </template>

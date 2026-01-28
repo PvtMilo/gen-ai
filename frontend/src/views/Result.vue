@@ -29,6 +29,6 @@ function handleFinish() {
       <a :href="resultUrl" target="_blank">Open image</a>
     </div>
   </div>
-
+  
   <button @click="handleFinish">Finish</button>
 </template>

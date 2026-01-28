@@ -21,7 +21,7 @@ _client = Ark(
     timeout=_httpx_timeout,   # <= ini kunci
 )
 
-def generate_i2i_url(*, prompt: str, image_data_url: str, size: str = "2k", watermark: bool = False) -> str:
+def generate_i2i_url(*, prompt: str, image_data_url: str, size: str = "4k", watermark: bool = False) -> str:
     print("[SEEDDREAM REQUEST] model=", SEEDDREAM_MODEL, "watermark=", watermark)
 
     resp = _client.images.generate(
