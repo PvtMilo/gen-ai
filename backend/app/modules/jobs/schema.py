@@ -8,4 +8,7 @@ class JobOut(BaseModel):
     session_id: int
     status: str
     result_url: str | None = None
+    drive_link: str | None = None
+    download_link: str | None = None
+    qr_url: str | None = None
     error_message: str | None = None

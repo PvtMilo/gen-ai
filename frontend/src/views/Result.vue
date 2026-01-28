@@ -1,18 +1,141 @@
 <script setup>
-import { computed } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useSeedDreamStore } from "../stores/seeddreamStore";
+import { getJob } from "../api/seeddream";
 
 const router = useRouter();
 const store = useSeedDreamStore();
 
 // base backend (tanpa /api/v1)
-const assetBase = import.meta.env.VITE_ASSET_BASE_URL || "http://127.0.0.1:8000";
+const assetBase =
+  import.meta.env.VITE_ASSET_BASE_URL || "http://127.0.0.1:8000";
+const apiBase =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/v1";
+const backendBase = apiBase.replace(/\/api\/v1\/?$/, "");
 
 const resultUrl = computed(() => {
   const p = store.job?.result_url;
   if (!p) return null;
   return p.startsWith("http") ? p : assetBase + p;
+});
+
+const singleQrCode = ref(null);
+const isQrOpen = ref(false);
+
+const driveLink = computed(() => {
+  return (
+    store.job?.drive_url ||
+    store.job?.drive_link ||
+    store.job?.driveLink ||
+    null
+  );
+});
+
+const downloadLink = computed(() => {
+  return (
+    store.job?.download_link ||
+    store.job?.downloadLink ||
+    null
+  );
+});
+
+const qrUrl = computed(() => store.job?.qr_url || null);
+
+const qrImageUrl = computed(() => {
+  const value = singleQrCode.value;
+  if (!value) return "";
+
+  if (value.startsWith("/")) {
+    return `${backendBase}${value}`;
+  }
+
+  const lower = value.toLowerCase();
+  const isImage =
+    value.startsWith("data:image/") ||
+    lower.includes("/drive/qr") ||
+    /\.(png|jpe?g|gif|webp|svg)$/.test(lower);
+
+  if (isImage) return value;
+
+  return `${backendBase}/api/v1/drive/qr?url=${encodeURIComponent(value)}`;
+});
+
+watch([downloadLink, driveLink, qrUrl], ([download, drive, qr]) => {
+  if (qr) {
+    singleQrCode.value = qr;
+    return;
+  }
+
+  if (download) {
+    singleQrCode.value = download;
+    return;
+  }
+
+  if (drive) {
+    singleQrCode.value = drive;
+    return;
+  }
+
+  singleQrCode.value = null;
+}, { immediate: true });
+
+const openQrModal = () => {
+  if (!singleQrCode.value) return;
+  isQrOpen.value = true;
+};
+
+const closeQrModal = () => {
+  isQrOpen.value = false;
+};
+
+let pollTimer = null;
+let pollTries = 0;
+
+const stopPolling = () => {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+};
+
+const pollJobForDrive = async () => {
+  if (!store.job?.job_id) return;
+  if (downloadLink.value || qrUrl.value) {
+    stopPolling();
+    return;
+  }
+
+  pollTries += 1;
+
+  try {
+    const latest = await getJob(store.job.job_id);
+    store.job = latest;
+    store.persist?.();
+  } catch (_) {
+    // ignore and retry
+  }
+
+  if (downloadLink.value || qrUrl.value) {
+    stopPolling();
+  }
+
+  if (pollTries >= 12) {
+    stopPolling();
+  }
+};
+
+onMounted(() => {
+  if (!store.job?.job_id) return;
+  if (downloadLink.value || qrUrl.value) return;
+
+  pollTries = 0;
+  pollJobForDrive();
+  pollTimer = setInterval(pollJobForDrive, 2000);
+});
+
+onBeforeUnmount(() => {
+  stopPolling();
 });
 
 function handleFinish() {
@@ -24,11 +147,67 @@ function handleFinish() {
   <h1>Result</h1>
 
   <div v-if="resultUrl">
-    <img :src="resultUrl" style="max-width: 360px;" />
-    <div>
-      <a :href="resultUrl" target="_blank">Open image</a>
+    <img :src="resultUrl" style="max-width: 360px" />
+  </div>
+  <button v-if="singleQrCode" @click="openQrModal">QR code</button>
+  <button @click="handleFinish">Finish</button>
+
+  <div v-if="isQrOpen" class="modal" @click.self="closeQrModal">
+    <div class="modal-content">
+      <button class="modal-close" type="button" @click="closeQrModal">x</button>
+      <img v-if="qrImageUrl" :src="qrImageUrl" alt="QR Code" />
+      <p v-else class="muted">QR code belum tersedia.</p>
     </div>
   </div>
-  
-  <button @click="handleFinish">Finish</button>
 </template>
+
+<style scoped>
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.modal-content {
+  position: relative;
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 12px;
+  max-width: min(90vw, 420px);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-content img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+}
+
+.modal-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  background: #111827;
+  color: #ffffff;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.muted {
+  color: #6b7280;
+}
+</style>

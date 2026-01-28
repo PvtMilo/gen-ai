@@ -81,6 +81,23 @@ onMounted(loadGallery);
           :src="resolvePhotoUrl(selectedPhoto.url)"
           :alt="`Result ${selectedPhoto.id}`"
         />
+        <div v-if="selectedPhoto.drive_link || selectedPhoto.qr_url" class="modal-actions">
+          <a
+            v-if="selectedPhoto.drive_link"
+            class="btn-link"
+            :href="selectedPhoto.drive_link"
+            target="_blank"
+            rel="noopener"
+          >
+            Drive Link
+          </a>
+          <img
+            v-if="selectedPhoto.qr_url"
+            class="qr"
+            :src="selectedPhoto.qr_url"
+            alt="QR Code"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -156,6 +173,28 @@ onMounted(loadGallery);
   border-radius: 12px;
   display: block;
   background: #111;
+}
+
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.btn-link {
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.qr {
+  width: 160px;
+  height: 160px;
 }
 
 .modal-close {

@@ -39,6 +39,17 @@ DB_PATH = DATA_DIR / "app.db"
 
 DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{DB_PATH.as_posix()}"
 
+
+def _env_bool(key: str, default: bool = False) -> bool:
+    val = os.getenv(key)
+    if val is None:
+        return default
+    return val.strip().lower() in ("1", "true", "yes", "y", "on")
+
+
+SEEDDREAM_SIZE = os.getenv("SEEDDREAM_SIZE", "2400x3600")
+SEEDDREAM_WATERMARK = _env_bool("SEEDDREAM_WATERMARK", True)
+
 class Settings:
     DATABASE_URL: str = DATABASE_URL
 

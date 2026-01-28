@@ -6,6 +6,7 @@ from app.api.v1.router import api_router
 from app.api.v1.endpoints.camera import router as camera_router
 from app.db.session import engine
 from app.db.base import Base
+from app.db.ensure import ensure_job_drive_columns
 from app.core.config import UPLOADS_DIR, RESULTS_DIR, DATA_DIR
 
 # IMPORTANT: pastikan model ter-import sebelum create_all
@@ -42,6 +43,7 @@ def on_startup():
     ensure_dirs()
     # DEV ONLY: create tables otomatis (nanti kalau sudah serius pindah ke Alembic)
     Base.metadata.create_all(bind=engine)
+    ensure_job_drive_columns(engine)
 
 @app.get("/")
 def root():

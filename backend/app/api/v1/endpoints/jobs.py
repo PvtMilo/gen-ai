@@ -41,5 +41,8 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
         session_id=job.session_id,
         status=job.status,
         result_url=job.result_image_path,
+        drive_link=job.drive_link,
+        download_link=job.download_link,
+        qr_url=job.qr_url,
         error_message=job.error_message,
     )

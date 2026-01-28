@@ -10,3 +10,6 @@ static/uploads/*
 static/results/*
 !static/results/.keep
 .DS_Store
+app/integrations/gdrive/client_secrets.json
+app/integrations/gdrive/token.json
+app/static/uploads/

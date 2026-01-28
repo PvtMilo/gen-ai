@@ -1,4 +1,6 @@
+import shutil
 import time
+from datetime import datetime
 from pathlib import Path
 from sqlalchemy.orm import Session
 
@@ -7,7 +9,7 @@ from app.modules.jobs.model import Job
 from app.modules.sessions.model import PhotoSession
 from app.modules.themes.service import get_theme_by_id
 
-from app.core.config import APP_DIR, RESULTS_DIR
+from app.core.config import APP_DIR, RESULTS_DIR, SEEDDREAM_SIZE, SEEDDREAM_WATERMARK
 from app.utils.encode import file_to_data_url
 from app.integrations.seeddream_client import generate_i2i_url
 from app.utils.files import save_image_from_url
@@ -27,6 +29,77 @@ def create_job(db: Session, session_id: int) -> Job:
     db.commit()
     db.refresh(job)
     return job
+
+
+def _attach_drive_info(db: Session, job: Job, file_path: Path) -> None:
+    try:
+        from app.integrations.gdrive.service import upload_file_to_drive
+    except Exception as e:
+        print(f"[JOB {job.id}] GDRIVE IMPORT FAILED: {e}")
+        return
+
+    try:
+        uploaded = upload_file_to_drive(file_path)
+        job.drive_file_id = uploaded.get("file_id")
+        job.drive_link = uploaded.get("drive_link")
+        job.download_link = uploaded.get("download_link")
+        job.qr_url = uploaded.get("qr_url")
+        job.drive_uploaded_at = datetime.utcnow()
+        db.commit()
+        db.refresh(job)
+        print(f"[JOB {job.id}] GDRIVE OK: {job.drive_link}")
+    except Exception as e:
+        print(f"[JOB {job.id}] GDRIVE FAILED: {e}")
+
+
+def sync_drive_links(
+    db: Session,
+    *,
+    limit: int | None = None,
+    force: bool = False,
+) -> list[dict]:
+    try:
+        from app.integrations.gdrive.client import get_drive_service
+        from app.integrations.gdrive.service import upload_file_to_drive
+    except Exception as e:
+        raise RuntimeError(f"GDRIVE_IMPORT_FAILED: {e}") from e
+
+    query = db.query(Job).filter(Job.result_image_path.isnot(None))
+    if not force:
+        query = query.filter(Job.drive_link.is_(None))
+    query = query.order_by(Job.id.desc())
+    if limit and limit > 0:
+        query = query.limit(limit)
+
+    service = get_drive_service()
+    results: list[dict] = []
+
+    for job in query.all():
+        rel = job.result_image_path.lstrip("/")
+        file_path = APP_DIR / rel
+        if not file_path.exists():
+            continue
+
+        uploaded = upload_file_to_drive(file_path, service=service)
+        job.drive_file_id = uploaded.get("file_id")
+        job.drive_link = uploaded.get("drive_link")
+        job.download_link = uploaded.get("download_link")
+        job.qr_url = uploaded.get("qr_url")
+        job.drive_uploaded_at = datetime.utcnow()
+        db.commit()
+        db.refresh(job)
+
+        results.append(
+            {
+                "job_id": job.id,
+                "result_url": job.result_image_path,
+                "drive_link": job.drive_link,
+                "download_link": job.download_link,
+                "qr_url": job.qr_url,
+            }
+        )
+
+    return results
 
 
 def process_job_dummy_safe(job_id: int) -> None:
@@ -65,6 +138,7 @@ def process_job_dummy_safe(job_id: int) -> None:
         job.status = "done"
         job.result_image_path = f"/static/results/{out_name}"
         db.commit()
+        _attach_drive_info(db, job, out_abs)
 
     except Exception as e:
         # fallback: mark failed (kalau job record masih ada)
@@ -139,8 +213,8 @@ def process_job_seeddream_safe(job_id: int) -> None:
         result_url = generate_i2i_url(
             prompt=prompt,
             image_data_url=image_data_url,
-            size="2400x3600",
-            watermark=True,
+            size=SEEDDREAM_SIZE,
+            watermark=SEEDDREAM_WATERMARK,
         )
 
         dt = time.time() - t0
@@ -181,6 +255,8 @@ def process_job_seeddream_safe(job_id: int) -> None:
         db.refresh(job2)
 
         print(f"[JOB {job_id}] DONE DB: status={job2.status}, result={job2.result_image_path}")
+
+        _attach_drive_info(db, job2, RESULTS_DIR / saved.name)
 
     except Exception as e:
         print(f"[JOB {job_id}] ERROR: {e}")
