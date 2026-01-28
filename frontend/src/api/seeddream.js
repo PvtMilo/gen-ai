@@ -40,6 +40,11 @@ export async function getJob(jobId) {
   return res.data; // JobOut
 }
 
+export async function getGallery({ limit = 100 } = {}) {
+  const res = await api.get("/gallery", { params: { limit } });
+  return res.data; // [{ id, url }]
+}
+
 // polling helper
 export async function pollJob(jobId, { intervalMs = 1000, timeoutMs = 180000 } = {}) {
   const started = Date.now();
