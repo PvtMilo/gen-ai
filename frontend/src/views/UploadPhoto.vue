@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useSeedDreamStore } from "../stores/seeddreamStore";
 import CameraCapture from "../components/CameraCapture.vue";
 import WebcamCapture from "../components/WebcamCapture.vue";
+import { onMounted } from "vue";
 
 const router = useRouter();
 const store = useSeedDreamStore();
@@ -17,16 +18,20 @@ const capturing = ref(false);
 const uploadingManual = ref(false);
 const uploadingCapture = ref(false);
 
-const assetBase = (import.meta.env.VITE_ASSET_BASE || "http://127.0.0.1:8000").replace(/\/$/, "");
+const assetBase = (
+  import.meta.env.VITE_ASSET_BASE || "http://127.0.0.1:8000"
+).replace(/\/$/, "");
 
 const photoSource = computed(() => store.photoSource || "camera");
 const isCameraSource = computed(() => photoSource.value === "camera");
 const isWebcamSource = computed(() => photoSource.value === "webcam");
 const isManualSource = computed(() => photoSource.value === "manual");
-const captureTitle = computed(() => (isWebcamSource.value ? "Webcam" : "Camera"));
+const captureTitle = computed(() =>
+  isWebcamSource.value ? "Webcam" : "Camera",
+);
 
-const hasCapturedPhoto = computed(
-  () => Boolean(capturedPhotoUrl.value || capturedPhotoFile.value),
+const hasCapturedPhoto = computed(() =>
+  Boolean(capturedPhotoUrl.value || capturedPhotoFile.value),
 );
 const isCameraBusy = computed(() => capturing.value || uploadingCapture.value);
 
@@ -52,7 +57,8 @@ function resolvePhotoUrl(url) {
 async function photoUrlToFile(photoUrl) {
   const targetUrl = resolvePhotoUrl(photoUrl);
   const res = await fetch(targetUrl);
-  if (!res.ok) throw new Error(`Failed to fetch captured photo (${res.status})`);
+  if (!res.ok)
+    throw new Error(`Failed to fetch captured photo (${res.status})`);
   const blob = await res.blob();
   const cleanUrl = photoUrl.split("?")[0];
   const baseName = cleanUrl.split("/").pop();
@@ -150,6 +156,19 @@ watch(photoSource, () => {
   capturing.value = false;
   uploadingCapture.value = false;
 });
+
+onMounted(async () => {
+  if (isWebcamSource.value && !store.cameraStream) {
+    try {
+      await store.warmupWebcam({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+    } catch (e) {
+      captureError.value = e?.message || "Gagal akses webcam.";
+    }
+  }
+});
 </script>
 
 <template>
@@ -171,7 +190,10 @@ watch(photoSource, () => {
 
       <WebcamCapture
         v-else-if="isWebcamSource"
+        :key="store.cameraStream?.id || 'no-stream'"
         ref="captureRef"
+        :externalStream="store.cameraStream"
+        :autoStart="false"
         @captured="handleCaptured"
         @retake="handleRetakeEvent"
         @error="handleCaptureError"
@@ -194,10 +216,10 @@ watch(photoSource, () => {
           {{
             hasCapturedPhoto
               ? uploadingCapture
-                ? "Uploading..."
+                ? "Uploading"
                 : "Next"
               : capturing
-                ? "Capturing..."
+                ? "Capturing"
                 : "Capture"
           }}
         </button>

@@ -9,7 +9,6 @@ import {
   getSession,
 } from "../api/seeddream";
 
-// helper: ambil pesan error dari FastAPI / Axios
 function extractErrorMessage(err, fallback = "UNKNOWN_ERROR") {
   const data = err?.response?.data;
 
@@ -31,6 +30,10 @@ export const useSeedDreamStore = defineStore("seeddream", {
     loadingThemes: false,
     loadingSession: false,
     loadingJob: false,
+
+    cameraStream: null,   // MediaStream
+    cameraReady: false,
+    cameraError: null,
 
     error: null,
   }),
@@ -64,6 +67,9 @@ export const useSeedDreamStore = defineStore("seeddream", {
       localStorage.removeItem("sd_session");
       localStorage.removeItem("sd_job");
       localStorage.removeItem("sd_photo_source");
+
+      // optional: juga stop webcam kalau lagi nyala
+      this.stopWebcam();
     },
 
     async loadThemes() {
@@ -105,7 +111,6 @@ export const useSeedDreamStore = defineStore("seeddream", {
     async chooseTheme(themeId) {
       if (!this.session?.session_id) throw new Error("NO_SESSION");
       this.error = null;
-
       try {
         this.session = await setTheme(this.session.session_id, themeId);
         this.persist();
@@ -139,7 +144,6 @@ export const useSeedDreamStore = defineStore("seeddream", {
 
     async generate({ intervalMs = 1000, timeoutMs = 240000 } = {}) {
       if (!this.session?.session_id) throw new Error("NO_SESSION");
-
       this.loadingJob = true;
       this.error = null;
 
@@ -174,6 +178,46 @@ export const useSeedDreamStore = defineStore("seeddream", {
       } finally {
         this.loadingJob = false;
       }
+    },
+
+    // ✅ pindahkan ke sini
+    async warmupWebcam(constraints = { video: true, audio: false }) {
+      this.cameraError = null;
+
+      // kalau sudah ada stream dan masih hidup, reuse aja (biar instant)
+      const hasLiveTrack =
+        this.cameraStream?.getTracks?.().some((t) => t.readyState === "live");
+
+      if (this.cameraStream && hasLiveTrack) {
+        this.cameraReady = true;
+        return this.cameraStream;
+      }
+
+      this.cameraReady = false;
+      // bersihin stream lama (kalau ada)
+      this.stopWebcam();
+
+      try {
+        if (!navigator?.mediaDevices?.getUserMedia) {
+          throw new Error("getUserMedia not supported");
+        }
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        this.cameraStream = stream;
+        this.cameraReady = true;
+        return stream;
+      } catch (e) {
+        this.cameraError = e?.message || "WEBCAM_FAILED";
+        this.cameraReady = false;
+        throw e;
+      }
+    },
+
+    stopWebcam() {
+      if (this.cameraStream?.getTracks) {
+        this.cameraStream.getTracks().forEach((t) => t.stop());
+      }
+      this.cameraStream = null;
+      this.cameraReady = false;
     },
   },
 });

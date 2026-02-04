@@ -23,8 +23,8 @@ function thumbUrl(t) {
   return t.thumbnail_url ? `${assetBase}${t.thumbnail_url}` : "";
 }
 
-
 function onSlideChange() {
+  //
 }
 
 function pickByClick(themeId) {
@@ -34,68 +34,100 @@ function pickByClick(themeId) {
 
 async function goNext() {
   if (!hasPicked.value || !selectedThemeId.value) return;
-  await store.chooseTheme(selectedThemeId.value);
-  router.push("/upload");
+
+  try {
+    await store.chooseTheme(selectedThemeId.value);
+
+    // Warmup webcam sebelum pindah halaman (biar UploadPhoto langsung ready)
+    if (store.photoSource === "webcam") {
+      await store.warmupWebcam({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+    }
+
+    router.push("/upload");
+  } catch (e) {
+    // 1) error dari chooseTheme sudah ada di store.error
+    // 2) error permission webcam ada di store.cameraError (kalau kamu set di store)
+    // tinggal tampilkan di UI
+    console.error(e);
+  }
 }
+
+const handleBack = () => {
+  router.push({ name: "Register" });
+};
 </script>
 <template>
-  <h1>Theme Selection</h1>
-
-  <Swiper
-    :slides-per-view="'auto'"
-    :space-between="12"
-    :centered-slides="store.themes.length <= 2"
-    :watch-overflow="true"
-    :pagination="{ clickable: true }"
-    @slideChange="onSlideChange"
-    class="theme-swiper"
-  >
-    <SwiperSlide
-      v-for="t in store.themes"
-      :key="t.id"
-      class="theme-slide"
+  <div id="themes">
+    <h1 class="title">Select your themes</h1>
+    <Swiper
+      :slides-per-view="'auto'"
+      :space-between="12"
+      :centered-slides="store.themes.length <= 2"
+      :watch-overflow="true"
+      :pagination="{ clickable: true }"
+      @slideChange="onSlideChange"
+      class="theme-swiper"
     >
-      <div
-        class="card"
-        :class="{ active: t.id === selectedThemeId }"
-        role="button"
-        tabindex="0"
-        @click="pickByClick(t.id)"
-      >
-        <img
-          v-if="t.thumbnail_url"
-          :src="thumbUrl(t)"
-          class="thumb"
-          alt="theme thumbnail"
-        />
-      </div>
-    </SwiperSlide>
-  </Swiper>
-
-  <div class="footer">
-    <button class="next-btn" :disabled="!hasPicked" @click="goNext">
-      Next
-    </button>
+      <SwiperSlide v-for="t in store.themes" :key="t.id" class="theme-slide">
+        <div
+          class="card"
+          :class="{ active: t.id === selectedThemeId }"
+          role="button"
+          tabindex="0"
+          @click="pickByClick(t.id)"
+        >
+          <img
+            v-if="t.thumbnail_url"
+            :src="thumbUrl(t)"
+            class="thumb"
+            alt="theme thumbnail"
+          />
+        </div>
+      </SwiperSlide>
+    </Swiper>
+    <div class="action-btn">
+      <button class="back btn" @click="handleBack">Back</button>
+      <button class="next btn" :disabled="!hasPicked" @click="goNext">
+        Next
+      </button>
+    </div>
   </div>
 </template>
 
 <style scoped>
+#themes {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  font-size: 4rem;
+  margin: 2em 0em 2em 0em;
+}
 
 .theme-swiper {
   padding: 8px 8px 22px;
 }
 
 .theme-slide {
-  width: clamp(160px, 42vw, 260px);
+  width: clamp(160px, 42vw, 420px);
+  border: 1px solid blue;
 }
 
 .card {
   padding: 10px;
   border-radius: 16px;
-  background: rgba(0,0,0,0.05);
+  background: rgba(0, 0, 0, 0.05);
   border: 3px solid transparent;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+    
 }
 
 .card.active {
@@ -106,7 +138,7 @@ async function goNext() {
 
 .thumb {
   width: 100%;
-  aspect-ratio: 2 / 3;   
+  aspect-ratio: 2 / 3;
   object-fit: cover;
   border-radius: 14px;
   display: block;
@@ -117,19 +149,8 @@ async function goNext() {
   display: flex;
   justify-content: center;
 }
-.next-btn {
-  padding: 14px 28px;
-  font-size: 16px;
-  border-radius: 999px;
-  border: none;
-  background: #111;
-  color: #fff;
-  cursor: pointer;
-}
-.next-btn:disabled {
+.next:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
-
 </style>
-

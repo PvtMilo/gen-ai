@@ -7,6 +7,8 @@ const router = useRouter();
 const store = useSeedDreamStore();
 
 onMounted(async () => {
+  store.stopWebcam();
+
   try {
     const finalJob = await store.generate({ intervalMs: 1000, timeoutMs: 240000 });
 
@@ -15,12 +17,13 @@ onMounted(async () => {
       return;
     }
 
-    // failed
     alert(finalJob.error_message || "Job failed");
     router.replace({ name: "UploadPhoto" });
   } catch (e) {
     alert(store.error || e?.message || "Generate failed");
     router.replace({ name: "UploadPhoto" });
+  } finally {
+    store.stopWebcam();
   }
 });
 </script>
