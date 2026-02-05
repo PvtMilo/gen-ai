@@ -14,6 +14,7 @@ def ensure_job_drive_columns(engine: Engine) -> None:
             "download_link": "VARCHAR(500)",
             "qr_url": "VARCHAR(500)",
             "drive_uploaded_at": "DATETIME",
+            "log_text": "TEXT",
         }
 
         for name, col_type in additions.items():

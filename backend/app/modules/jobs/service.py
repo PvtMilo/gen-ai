@@ -101,62 +101,10 @@ def sync_drive_links(
 
     return results
 
-
-def process_job_dummy_safe(job_id: int) -> None:
-    """
-    AMAN: bikin SessionLocal sendiri di background thread.
-    """
-    db = SessionLocal()
-    try:
-        job = db.query(Job).filter(Job.id == job_id).first()
-        if not job:
-            return
-
-        job.status = "processing"
-        db.commit()
-
-        # simulasi loading 2 detik
-        time.sleep(2)
-
-        session = db.query(PhotoSession).filter(PhotoSession.id == job.session_id).first()
-        if not session or not session.input_image_path:
-            job.status = "failed"
-            job.error_message = "Session photo missing"
-            db.commit()
-            return
-
-        # input_image_path contoh: /static/uploads/xxx.jpeg
-        input_rel = session.input_image_path.lstrip("/")  # static/uploads/xxx.jpeg
-        input_abs = Path("app") / input_rel               # app/static/uploads/xxx.jpeg
-
-        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-        out_name = f"result_job_{job.id}.jpeg"
-        out_abs = RESULTS_DIR / out_name
-
-        shutil.copy2(input_abs, out_abs)
-
-        job.status = "done"
-        job.result_image_path = f"/static/results/{out_name}"
-        db.commit()
-        _attach_drive_info(db, job, out_abs)
-
-    except Exception as e:
-        # fallback: mark failed (kalau job record masih ada)
-        try:
-            job = db.query(Job).filter(Job.id == job_id).first()
-            if job:
-                job.status = "failed"
-                job.error_message = str(e)
-                db.commit()
-        except Exception:
-            pass
-    finally:
-        db.close()
-
-
 def process_job_seeddream_safe(job_id: int) -> None:
     db: Session = SessionLocal()
     started_at = time.time()
+    job: Job | None = None
 
     def mark_failed(msg: str):
         job2 = db.query(Job).filter(Job.id == job_id).first()
@@ -165,50 +113,64 @@ def process_job_seeddream_safe(job_id: int) -> None:
             job2.error_message = msg
             db.commit()
 
-    try:
-        print(f"[JOB {job_id}] START")
+    def log_line(message: str) -> None:
+        nonlocal job
+        print(message)
+        try:
+            job2 = job or db.query(Job).filter(Job.id == job_id).first()
+            if not job2:
+                return
+            job = job2
+            if job2.log_text:
+                job2.log_text = f"{job2.log_text}\n{message}"
+            else:
+                job2.log_text = message
+            db.commit()
+        except Exception:
+            pass
 
+    try:
         job = db.query(Job).filter(Job.id == job_id).first()
         if not job:
-            print(f"[JOB {job_id}] job not found")
+            log_line("job not found")
             return
 
         job.status = "processing"
+        job.log_text = None
         db.commit()
         db.refresh(job)
+
+        log_line("processing")
 
 
         session = db.query(PhotoSession).filter(PhotoSession.id == job.session_id).first()
         if not session or not session.theme_id or not session.input_image_path:
             mark_failed("Session not ready (theme/photo missing)")
-            print(f"[JOB {job_id}] FAILED: session not ready")
+            log_line("failed: session not ready")
             return
 
         theme = get_theme_by_id(session.theme_id)
         if not theme:
             mark_failed("Theme not found")
-            print(f"[JOB {job_id}] FAILED: theme not found")
+            log_line("failed: theme not found")
             return
 
         rel = session.input_image_path.lstrip("/")          # static/uploads/xxx.jpeg
         input_abs = APP_DIR / rel                           # backend/app/static/uploads/xxx.jpeg
-        print(f"[JOB {job_id}] input_abs={input_abs}")
 
         if not input_abs.exists():
             mark_failed(f"Input file not found: {input_abs}")
-            print(f"[JOB {job_id}] FAILED: file not found")
+            log_line("failed: input file missing")
             return
 
         # -------- checkpoint: encode base64
-        print(f"[JOB {job_id}] ENCODING IMAGE...")
+        log_line("encoding image")
         image_data_url = file_to_data_url(input_abs)
-        print(f"[JOB {job_id}] ENCODE OK, data_url_len={len(image_data_url)}")
 
         prompt = theme.prompt
 
         # -------- checkpoint: call seeddream
-        print(f"[JOB {job_id}] CALLING SEEDDREAM...")
-        t0 = time.time()
+        log_line("calling api")
 
         result_url = generate_i2i_url(
             prompt=prompt,
@@ -217,15 +179,12 @@ def process_job_seeddream_safe(job_id: int) -> None:
             watermark=SEEDDREAM_WATERMARK,
         )
 
-        dt = time.time() - t0
-        print(f"[JOB {job_id}] SEEDDREAM RETURNED in {dt:.1f}s")
-        print(f"[JOB {job_id}] result_url={result_url}")
+        log_line("api done")
 
         # hard timeout (opsional)
         if time.time() - started_at > 180:
             raise RuntimeError("Job timeout >180s (processing took too long)")
 
-        print(f"[JOB {job_id}] DOWNLOADING RESULT...")
         try:
             saved = save_image_from_url(
                 result_url,
@@ -234,19 +193,18 @@ def process_job_seeddream_safe(job_id: int) -> None:
                 attempts=5,
                 connect_timeout=10,
                 read_timeout=180,
-                log_prefix=f"[JOB {job_id}] DOWNLOAD",
+                logger=log_line,
+                label="downloading",
                 progress_step=10,
             )
         except Exception as e:
             mark_failed(str(e))
-            print(f"[JOB {job_id}] DOWNLOAD FAILED: {e}")
+            log_line("failed: download")
             return
-
-        print(f"[JOB {job_id}] SAVED RESULT: {saved.name}")
 
         job2 = db.query(Job).filter(Job.id == job_id).first()
         if not job2:
-            print(f"[JOB {job_id}] job missing before final commit")
+            log_line("job missing before final commit")
             return
 
         job2.status = "done"
@@ -254,12 +212,12 @@ def process_job_seeddream_safe(job_id: int) -> None:
         db.commit()
         db.refresh(job2)
 
-        print(f"[JOB {job_id}] DONE DB: status={job2.status}, result={job2.result_image_path}")
+        log_line("done")
 
         _attach_drive_info(db, job2, RESULTS_DIR / saved.name)
 
     except Exception as e:
-        print(f"[JOB {job_id}] ERROR: {e}")
+        log_line(f"failed: {e}")
         try:
             mark_failed(str(e))
         except Exception:

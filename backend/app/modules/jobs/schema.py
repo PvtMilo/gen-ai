@@ -12,3 +12,4 @@ class JobOut(BaseModel):
     download_link: str | None = None
     qr_url: str | None = None
     error_message: str | None = None
+    log_text: str | None = None

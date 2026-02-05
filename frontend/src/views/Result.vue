@@ -22,6 +22,7 @@ const resultUrl = computed(() => {
 
 const singleQrCode = ref(null);
 const isQrOpen = ref(false);
+const isFmodalOpen = ref(false);
 
 const driveLink = computed(() => {
   return (
@@ -33,11 +34,7 @@ const driveLink = computed(() => {
 });
 
 const downloadLink = computed(() => {
-  return (
-    store.job?.download_link ||
-    store.job?.downloadLink ||
-    null
-  );
+  return store.job?.download_link || store.job?.downloadLink || null;
 });
 
 const qrUrl = computed(() => store.job?.qr_url || null);
@@ -61,25 +58,30 @@ const qrImageUrl = computed(() => {
   return `${backendBase}/api/v1/drive/qr?url=${encodeURIComponent(value)}`;
 });
 
-watch([downloadLink, driveLink, qrUrl], ([download, drive, qr]) => {
-  if (qr) {
-    singleQrCode.value = qr;
-    return;
-  }
+watch(
+  [downloadLink, driveLink, qrUrl],
+  ([download, drive, qr]) => {
+    if (qr) {
+      singleQrCode.value = qr;
+      return;
+    }
 
-  if (download) {
-    singleQrCode.value = download;
-    return;
-  }
+    if (download) {
+      singleQrCode.value = download;
+      return;
+    }
 
-  if (drive) {
-    singleQrCode.value = drive;
-    return;
-  }
+    if (drive) {
+      singleQrCode.value = drive;
+      return;
+    }
 
-  singleQrCode.value = null;
-}, { immediate: true });
+    singleQrCode.value = null;
+  },
+  { immediate: true },
+);
 
+// DRIVE QR MODAL
 const openQrModal = () => {
   if (!singleQrCode.value) return;
   isQrOpen.value = true;
@@ -125,6 +127,16 @@ const pollJobForDrive = async () => {
   }
 };
 
+// FINISH MODAL
+
+const openFModal = () => {
+  isFmodalOpen.value = true;
+};
+
+const closeFModal = () => {
+  isFmodalOpen.value = false;
+};
+
 onMounted(() => {
   if (!store.job?.job_id) return;
   if (downloadLink.value || qrUrl.value) return;
@@ -144,24 +156,60 @@ function handleFinish() {
 </script>
 
 <template>
-  <h1>Result</h1>
+  <div class="result-page">
+    <h1 class="result-title">This Is Yours</h1>
+    <div v-if="resultUrl">
+      <img :src="resultUrl" style="max-width: 700px" />
+    </div>
+    <div class="action-button" >
+      <button v-if="singleQrCode" @click="openQrModal">QR code</button>
+      <img src="../assets/ui/done.png" @click="openFModal" style="max-width: 125px"/>
+      <img src="../assets/ui/print.png" alt="print" >
+    </div>
 
-  <div v-if="resultUrl">
-    <img :src="resultUrl" style="max-width: 360px" />
-  </div>
-  <button v-if="singleQrCode" @click="openQrModal">QR code</button>
-  <button @click="handleFinish">Finish</button>
+    <div v-if="isQrOpen" class="modal" @click.self="closeQrModal">
+      <div class="modal-content">
+        <button class="modal-close" type="button" @click="closeQrModal">
+          x
+        </button>
+        <img v-if="qrImageUrl" :src="qrImageUrl" alt="QR Code" />
+        <p v-else class="muted">QR code belum tersedia.</p>
+      </div>
+    </div>
 
-  <div v-if="isQrOpen" class="modal" @click.self="closeQrModal">
-    <div class="modal-content">
-      <button class="modal-close" type="button" @click="closeQrModal">x</button>
-      <img v-if="qrImageUrl" :src="qrImageUrl" alt="QR Code" />
-      <p v-else class="muted">QR code belum tersedia.</p>
+    <div v-if="isFmodalOpen" class="modal">
+      <div class="modal-content">
+        <button class="modal-close" type="button" @click="closeFModal">
+          x
+        </button>
+        <div class="end-confirmation">
+          <button @click="handleFinish">YES</button>
+          <button @click="closeFModal">NO</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.result-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 1rem;
+}
+
+.result-title{
+  color: white;
+  font-size: 5rem;
+}
+
+.action-button{
+  display: flex;
+  padding-top: 2rem;
+}
+
 .modal {
   position: fixed;
   inset: 0;

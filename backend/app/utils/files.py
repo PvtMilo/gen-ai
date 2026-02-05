@@ -1,5 +1,7 @@
 from pathlib import Path
+import time
 import uuid
+from typing import Callable
 import requests
 from fastapi import UploadFile
 
@@ -13,8 +15,16 @@ def save_image_from_url(
     connect_timeout: int = 10,
     read_timeout: int = 180,
     log_prefix: str = "[DOWNLOAD]",
+    label: str = "downloading",
+    logger: Callable[[str], None] | None = None,
     progress_step: int = 10,   # print tiap 10%
 ) -> Path:
+    def emit(message: str) -> None:
+        if logger:
+            logger(message)
+        else:
+            print(message)
+
     out_dir.mkdir(parents=True, exist_ok=True)
     filename = f"{uuid.uuid4().hex}{ext}"
     out_path = out_dir / filename
@@ -37,9 +47,13 @@ def save_image_from_url(
                 last_printed = -1
 
                 if total_bytes:
-                    print(f"{log_prefix} attempt {attempt}/{attempts} total={total_bytes} bytes")
+                    if not logger:
+                        emit(f"{log_prefix} attempt {attempt}/{attempts} total={total_bytes} bytes")
                 else:
-                    print(f"{log_prefix} attempt {attempt}/{attempts} total=unknown")
+                    if logger:
+                        emit(f"{label}")
+                    else:
+                        emit(f"{log_prefix} attempt {attempt}/{attempts} total=unknown")
 
                 with out_path.open("wb") as f:
                     for chunk in r.iter_content(chunk_size=1024 * 256):  # 256KB
@@ -55,26 +69,30 @@ def save_image_from_url(
                                 pct = 100
                             if pct // progress_step != last_printed // progress_step:
                                 last_printed = pct
-                                print(f"{log_prefix} {pct}%")
+                                emit(f"{label} {pct}%" if logger else f"{log_prefix} {pct}%")
                         else:
                             # fallback kalau tidak ada Content-Length
                             # print tiap ~1MB
                             if downloaded % (1024 * 1024) < len(chunk):
                                 mb = downloaded / (1024 * 1024)
-                                print(f"{log_prefix} downloaded {mb:.1f} MB")
+                                emit(f"{label} {mb:.1f} MB" if logger else f"{log_prefix} downloaded {mb:.1f} MB")
 
                 # pastikan selalu ada 100% kalau total_bytes ada
                 if total_bytes and last_printed < 100:
-                    print(f"{log_prefix} 100%")
+                    emit(f"{label} 100%" if logger else f"{log_prefix} 100%")
 
-                print(f"{log_prefix} completed -> {out_path.name}")
+                if not logger:
+                    emit(f"{log_prefix} completed -> {out_path.name}")
                 return out_path
 
         except Exception as e:
             last_err = e
             # backoff
             sleep_s = min(2 ** (attempt - 1), 10)
-            print(f"{log_prefix} attempt {attempt}/{attempts} failed: {e} (retry in {sleep_s}s)")
+            if logger:
+                emit("download failed, retrying")
+            else:
+                emit(f"{log_prefix} attempt {attempt}/{attempts} failed: {e} (retry in {sleep_s}s)")
             time.sleep(sleep_s)
 
             # hapus file partial sebelum retry

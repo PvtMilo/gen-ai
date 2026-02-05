@@ -11,7 +11,7 @@
   "id": "cyberpunk-city",
   "title": "Cyberpunk City",
   "thumbnail": "/static/thumbs/futuristic-city.jpeg",
-  "prompt": "turn this man into roman soldier and change the background",
+  "prompt": "Transform the input photo into a cyberpunk night city scene, keeping the exact same number of people as in the original image (no added or missing subjects). Preserve each person’s real face/identity, skin tone, and natural body proportions. Do NOT change pose, facial structure, expression, camera angle, or framing. Outfit transformation: cyberpunk techwear for each person (futuristic jackets, tactical streetwear, subtle armor panels, neon accent trims), no logos, no brand marks, no readable text. Background: rainy neon cyberpunk city street at night with holographic billboards and glowing signage, wet asphalt reflections, cinematic lighting, ultra-realistic photography, high-end photobooth look.",
   "params": { "aspect_ratio": "2:3" }
 }
 

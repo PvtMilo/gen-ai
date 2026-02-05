@@ -18,7 +18,7 @@ _httpx_timeout = httpx.Timeout(90.0, connect=30.0, read=90.0, write=30.0)
 _client = Ark(
     base_url=ARK_BASE_URL,
     api_key=ARK_API_KEY,
-    timeout=_httpx_timeout,   # <= ini kunci
+    timeout=_httpx_timeout,
 )
 
 def generate_i2i_url(*, prompt: str, image_data_url: str, size: str = "4k", watermark: bool = False) -> str:

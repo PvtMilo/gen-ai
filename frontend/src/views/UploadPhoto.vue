@@ -172,13 +172,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="page">
-    <h1>Upload Photo</h1>
+  <div class="upload-page">
+    <!-- <h1>Upload Photo</h1> -->
 
     <p v-if="store.error" class="error">{{ store.error }}</p>
 
     <section v-if="!isManualSource" class="camera-wrapper">
-      <h2>{{ captureTitle }}</h2>
+      <!-- <h2>{{ captureTitle }}</h2> -->
 
       <CameraCapture
         v-if="isCameraSource"
@@ -239,23 +239,24 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.page {
+.upload-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
 }
 
 .camera-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 4rem;
 }
 
 .camera-btn-wrapper {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 12px;
+  gap: 1rem;
 }
 
 .manual-upload {

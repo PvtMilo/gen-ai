@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.jobs.schema import JobCreateIn, JobOut
-from app.modules.jobs.service import create_job, process_job_dummy_safe, process_job_seeddream_safe
+from app.modules.jobs.service import create_job, process_job_seeddream_safe
 from app.modules.jobs.model import Job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -45,4 +45,5 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
         download_link=job.download_link,
         qr_url=job.qr_url,
         error_message=job.error_message,
+        log_text=job.log_text,
     )
