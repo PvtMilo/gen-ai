@@ -23,6 +23,7 @@ const resultUrl = computed(() => {
 const singleQrCode = ref(null);
 const isQrOpen = ref(false);
 const isFmodalOpen = ref(false);
+const isPrintingModalOpen = ref(false)
 
 const driveLink = computed(() => {
   return (
@@ -127,6 +128,99 @@ const pollJobForDrive = async () => {
   }
 };
 
+// PRINTING MODAL
+
+const openPrintingModal = () => {
+  isPrintingModalOpen.value = true;
+};
+
+const closePrintingModal = () => {
+  isPrintingModalOpen.value = false;
+};
+
+const confirmPrinting = () => {
+  isPrintingModalOpen.value = false;
+  if (typeof window === "undefined") return;
+
+  const resultPath = store.job?.result_url || "";
+  const imageUrl = resultUrl.value;
+
+  if (!imageUrl) {
+    alert("Result image is not ready.");
+    return;
+  }
+
+  // Guard: only print generated output from static/results, never captured/upload source.
+  if (!resultPath.includes("/static/results/")) {
+    alert("Printable result image not found.");
+    return;
+  }
+
+  const printWindow = window.open("", "_blank", "width=1200,height=900");
+  if (!printWindow) {
+    alert("Unable to open print window.");
+    return;
+  }
+
+  const safeUrl = imageUrl.replace(/"/g, "&quot;");
+  printWindow.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Print Result</title>
+        <style>
+          @page { margin: 0; }
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+          }
+          .print-wrap {
+            width: 2400px;
+            height: 3600px;
+            margin: 0 auto;
+          }
+          img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="print-wrap">
+          <img id="print-image" src="${safeUrl}" alt="Result Image" />
+        </div>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+
+  const img = printWindow.document.getElementById("print-image");
+  if (!img) {
+    printWindow.close();
+    alert("Failed to load result image for printing.");
+    return;
+  }
+
+  const triggerPrint = () => {
+    printWindow.focus();
+    printWindow.print();
+    setTimeout(() => printWindow.close(), 200);
+  };
+
+  img.onload = triggerPrint;
+  img.onerror = () => {
+    printWindow.document.body.innerHTML = "<p>Failed to load result image for printing.</p>";
+  };
+
+  if (img.complete) {
+    triggerPrint();
+  }
+};
+
 // FINISH MODAL
 
 const openFModal = () => {
@@ -164,7 +258,7 @@ function handleFinish() {
     <div class="action-button" >
       <button v-if="singleQrCode" @click="openQrModal">QR code</button>
       <img src="../assets/ui/done.png" @click="openFModal" style="max-width: 125px"/>
-      <img src="../assets/ui/print.png" alt="print" >
+      <img src="../assets/ui/print.png" @click="openPrintingModal" alt="print" >
     </div>
 
     <div v-if="isQrOpen" class="modal" @click.self="closeQrModal">
@@ -185,6 +279,18 @@ function handleFinish() {
         <div class="end-confirmation">
           <button @click="handleFinish">YES</button>
           <button @click="closeFModal">NO</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="isPrintingModalOpen" class="modal">
+      <div class="modal-content">
+        <button class="modal-close" type="button" @click="closePrintingModal">
+          x
+        </button>
+        <div class="end-confirmation">
+          <button @click="confirmPrinting">YES</button>
+          <button @click="closePrintingModal">NO</button>
         </div>
       </div>
     </div>
