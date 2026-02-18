@@ -1,21 +1,56 @@
 import shutil
 import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 from sqlalchemy.orm import Session
+from PIL import Image, ImageOps
 
 from app.db.session import SessionLocal
 from app.modules.jobs.model import Job
 from app.modules.sessions.model import PhotoSession
 from app.modules.themes.service import get_theme_by_id
 
-from app.core.config import APP_DIR, RESULTS_DIR, SEEDDREAM_SIZE, SEEDDREAM_WATERMARK
+from app.core.config import (
+    APP_DIR,
+    RESULTS_DIR,
+    OVERLAYS_DIR,
+    SEEDDREAM_SIZE,
+    SEEDDREAM_WATERMARK,
+)
 from app.utils.encode import file_to_data_url
-from app.integrations.seeddream_client import generate_i2i_url
 from app.utils.files import save_image_from_url
 
+RESAMPLE_LANCZOS = Image.Resampling.LANCZOS if hasattr(Image, "Resampling") else Image.LANCZOS
 
-def create_job(db: Session, session_id: int) -> Job:
+
+def _normalize_mode(mode: str | None) -> str:
+    return "debugging" if mode == "debugging" else "event"
+
+
+def _resolve_overlay_abs(overlay_url: str | None) -> Path | None:
+    if not overlay_url:
+        return None
+    if not overlay_url.startswith("/static/overlays/"):
+        raise ValueError("OVERLAY_INVALID")
+    rel = overlay_url.lstrip("/")
+    abs_path = (APP_DIR / rel).resolve()
+    overlays_root = OVERLAYS_DIR.resolve()
+    if overlays_root not in abs_path.parents:
+        raise ValueError("OVERLAY_INVALID")
+    if abs_path.suffix.lower() != ".png":
+        raise ValueError("OVERLAY_INVALID")
+    if not abs_path.exists() or not abs_path.is_file():
+        raise ValueError("OVERLAY_NOT_FOUND")
+    return abs_path
+
+
+def create_job(
+    db: Session,
+    session_id: int,
+    mode: str = "event",
+    overlay_url: str | None = None,
+) -> Job:
     s = db.query(PhotoSession).filter(PhotoSession.id == session_id).first()
     if not s:
         raise ValueError("SESSION_NOT_FOUND")
@@ -24,7 +59,14 @@ def create_job(db: Session, session_id: int) -> Job:
     if not s.input_image_path:
         raise ValueError("PHOTO_NOT_UPLOADED")
 
-    job = Job(session_id=session_id, status="queued")
+    _resolve_overlay_abs(overlay_url)
+
+    job = Job(
+        session_id=session_id,
+        mode=_normalize_mode(mode),
+        overlay_image_path=overlay_url,
+        status="queued",
+    )
     db.add(job)
     db.commit()
     db.refresh(job)
@@ -101,7 +143,95 @@ def sync_drive_links(
 
     return results
 
-def process_job_seeddream_safe(job_id: int) -> None:
+def _generate_event_result(input_abs: Path, prompt: str, *, logger, started_at: float) -> Path:
+    # Keep these steps isolated so overlay can be inserted later after this stage.
+    logger("encoding image")
+    image_data_url = file_to_data_url(input_abs)
+
+    logger("calling api")
+    from app.integrations.seeddream_client import generate_i2i_url
+
+    result_url = generate_i2i_url(
+        prompt=prompt,
+        image_data_url=image_data_url,
+        size=SEEDDREAM_SIZE,
+        watermark=SEEDDREAM_WATERMARK,
+    )
+
+    logger("api done")
+
+    if time.time() - started_at > 180:
+        raise RuntimeError("Job timeout >180s (processing took too long)")
+
+    return save_image_from_url(
+        result_url,
+        RESULTS_DIR,
+        ext=".jpg",
+        attempts=5,
+        connect_timeout=10,
+        read_timeout=180,
+        logger=logger,
+        label="downloading",
+        progress_step=10,
+    )
+
+
+def _generate_debug_result(input_abs: Path, *, logger) -> Path:
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    ext = input_abs.suffix.lower() if input_abs.suffix else ".jpg"
+    saved = RESULTS_DIR / f"{uuid.uuid4().hex}{ext}"
+    shutil.copy2(input_abs, saved)
+    logger("debug mode: copied captured image")
+    return saved
+
+
+def _bake_overlay(result_abs: Path, overlay_abs: Path, *, logger) -> Path:
+    logger("overlay: loading files")
+    with Image.open(result_abs) as result_img:
+        result_img.load()
+        result_w, result_h = result_img.size
+        result_rgba = result_img.convert("RGBA")
+
+    with Image.open(overlay_abs) as overlay_img:
+        overlay_img.load()
+        overlay_w, overlay_h = overlay_img.size
+        overlay_rgba = overlay_img.convert("RGBA")
+
+    logger(f"overlay: result={result_w}x{result_h}, overlay={overlay_w}x{overlay_h}")
+
+    if (overlay_w, overlay_h) == (result_w, result_h):
+        fitted_overlay = overlay_rgba
+        logger("overlay: size matched")
+    else:
+        src_ratio = overlay_w / overlay_h
+        dst_ratio = result_w / result_h
+        if abs(src_ratio - dst_ratio) < 1e-6:
+            fitted_overlay = overlay_rgba.resize((result_w, result_h), RESAMPLE_LANCZOS)
+            logger(f"overlay: resized to {result_w}x{result_h}")
+        else:
+            # Fallback for unexpected ratio mismatch while avoiding stretch.
+            contained = ImageOps.contain(
+                overlay_rgba,
+                (result_w, result_h),
+                method=RESAMPLE_LANCZOS,
+            )
+            fitted_overlay = Image.new("RGBA", (result_w, result_h), (0, 0, 0, 0))
+            offset_x = (result_w - contained.width) // 2
+            offset_y = (result_h - contained.height) // 2
+            fitted_overlay.paste(contained, (offset_x, offset_y), contained)
+            logger("overlay: ratio mismatch, fitted without stretch")
+
+    logger("overlay: baking")
+    composed = Image.alpha_composite(result_rgba, fitted_overlay)
+
+    out_path = RESULTS_DIR / f"{uuid.uuid4().hex}.png"
+    # Save final composite as PNG so we do not add extra lossy JPEG compression.
+    composed.save(out_path, format="PNG", optimize=False, compress_level=3)
+    logger("overlay: done")
+    return out_path
+
+
+def process_job_seeddream_safe(job_id: int, requested_mode: str | None = None) -> None:
     db: Session = SessionLocal()
     started_at = time.time()
     job: Job | None = None
@@ -135,12 +265,14 @@ def process_job_seeddream_safe(job_id: int) -> None:
             log_line("job not found")
             return
 
+        mode = _normalize_mode(requested_mode or job.mode)
         job.status = "processing"
+        job.mode = mode
         job.log_text = None
         db.commit()
         db.refresh(job)
 
-        log_line("processing")
+        log_line(f"processing mode={mode}")
 
 
         session = db.query(PhotoSession).filter(PhotoSession.id == job.session_id).first()
@@ -163,44 +295,37 @@ def process_job_seeddream_safe(job_id: int) -> None:
             log_line("failed: input file missing")
             return
 
-        # -------- checkpoint: encode base64
-        log_line("encoding image")
-        image_data_url = file_to_data_url(input_abs)
-
-        prompt = theme.prompt
-
-        # -------- checkpoint: call seeddream
-        log_line("calling api")
-
-        result_url = generate_i2i_url(
-            prompt=prompt,
-            image_data_url=image_data_url,
-            size=SEEDDREAM_SIZE,
-            watermark=SEEDDREAM_WATERMARK,
-        )
-
-        log_line("api done")
-
-        # hard timeout (opsional)
-        if time.time() - started_at > 180:
-            raise RuntimeError("Job timeout >180s (processing took too long)")
-
         try:
-            saved = save_image_from_url(
-                result_url,
-                RESULTS_DIR,
-                ext=".jpg",
-                attempts=5,
-                connect_timeout=10,
-                read_timeout=180,
-                logger=log_line,
-                label="downloading",
-                progress_step=10,
-            )
+            if mode == "debugging":
+                saved = _generate_debug_result(input_abs, logger=log_line)
+            else:
+                saved = _generate_event_result(
+                    input_abs,
+                    theme.prompt,
+                    logger=log_line,
+                    started_at=started_at,
+                )
         except Exception as e:
             mark_failed(str(e))
-            log_line("failed: download")
+            log_line("failed: generate")
             return
+
+        overlay_abs = _resolve_overlay_abs(job.overlay_image_path)
+        if overlay_abs:
+            try:
+                baked = _bake_overlay(saved, overlay_abs, logger=log_line)
+                if baked != saved and saved.exists():
+                    try:
+                        saved.unlink()
+                    except Exception:
+                        pass
+                saved = baked
+            except Exception as e:
+                mark_failed(str(e))
+                log_line("failed: overlay")
+                return
+        else:
+            log_line("overlay: skipped")
 
         job2 = db.query(Job).filter(Job.id == job_id).first()
         if not job2:
@@ -208,13 +333,14 @@ def process_job_seeddream_safe(job_id: int) -> None:
             return
 
         job2.status = "done"
+        job2.mode = mode
         job2.result_image_path = f"/static/results/{saved.name}"
         db.commit()
         db.refresh(job2)
 
         log_line("done")
 
-        _attach_drive_info(db, job2, RESULTS_DIR / saved.name)
+        _attach_drive_info(db, job2, saved)
 
     except Exception as e:
         log_line(f"failed: {e}")

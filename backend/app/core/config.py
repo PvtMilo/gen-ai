@@ -11,6 +11,7 @@ PROJECT_DIR = APP_DIR.parent
 STATIC_DIR = APP_DIR / "static"
 UPLOADS_DIR = STATIC_DIR / "uploads"
 CAPTURED_DIR = STATIC_DIR / "captured"
+OVERLAYS_DIR = STATIC_DIR / "overlays"
 # Folder asli tempat digiCamControl menyimpan foto dari kamera
 # Default diset ke path yang kamu berikan, tapi bisa dioverride pakai env DIGICAM_ORIGINAL_DIR
 DIGICAM_ORIGINAL_DIR = Path(
@@ -30,6 +31,7 @@ DIGICAM_PREVIEW_PATH = os.getenv("DIGICAM_PREVIEW_PATH", "/liveview.jpg")
 DIGICAM_CAPTURE_CMD = os.getenv("DIGICAM_CAPTURE_CMD", "/?CMD=Capture")
 
 RESULTS_DIR = STATIC_DIR / "results"
+OVERLAY_ALLOWED_SIZES = {(1200, 1800), (2400, 3600)}
 
 THEMES_DIR = APP_DIR / "modules" / "themes" / "data"
 THEMES_JSON = THEMES_DIR / "themes.json"

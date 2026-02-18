@@ -30,8 +30,27 @@ export async function uploadPhoto(sessionId, file) {
   return res.data; // SessionOut
 }
 
-export async function createJob(sessionId) {
-  const res = await api.post("/jobs", { session_id: sessionId });
+export async function uploadOverlay(file) {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await api.post("/settings/overlay", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data; // { overlay_url, width, height }
+}
+
+export async function getPrinters() {
+  const res = await api.get("/printer/devices");
+  return res.data; // { printers: [{ name, is_default }], detected_on, error_message }
+}
+
+export async function createJob(sessionId, mode = "event", overlayUrl = null) {
+  const res = await api.post("/jobs", {
+    session_id: sessionId,
+    mode,
+    overlay_url: overlayUrl,
+  });
   return res.data; // JobOut
 }
 

@@ -7,7 +7,7 @@ from app.api.v1.endpoints.camera import router as camera_router
 from app.db.session import engine
 from app.db.base import Base
 from app.db.ensure import ensure_job_drive_columns
-from app.core.config import UPLOADS_DIR, RESULTS_DIR, DATA_DIR
+from app.core.config import UPLOADS_DIR, RESULTS_DIR, DATA_DIR, OVERLAYS_DIR
 
 # IMPORTANT: pastikan model ter-import sebelum create_all
 from app.modules.users.model import User  # noqa: F401
@@ -17,6 +17,7 @@ from app.modules.sessions.model import PhotoSession  # noqa: F401
 def ensure_dirs():
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    OVERLAYS_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="AI Generative API")

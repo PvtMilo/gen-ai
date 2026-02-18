@@ -10,6 +10,8 @@ class UserOut(BaseModel):
 class JobOut(BaseModel):
     job_id: int
     session_id: int
+    mode: Literal["event", "debugging"] = "event"
+    overlay_url: Optional[str] = None
     status: Literal["queued", "processing", "done", "failed"]
     result_url: Optional[str] = None
     error_message: Optional[str] = None

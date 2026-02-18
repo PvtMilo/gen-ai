@@ -6,6 +6,9 @@ from app.api.v1.endpoints.themes import router as themes_router
 from app.api.v1.endpoints.jobs import router as jobs_router
 from app.api.v1.endpoints.gallery import router as gallery_router
 from app.api.v1.endpoints.drive import router as drive_router
+from app.api.v1.endpoints.printer import router as printer_router
+from app.api.v1.endpoints.settings import router as settings_router
+
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -15,3 +18,5 @@ api_router.include_router(themes_router)
 api_router.include_router(jobs_router)
 api_router.include_router(gallery_router)
 api_router.include_router(drive_router)
+api_router.include_router(printer_router)
+api_router.include_router(settings_router)

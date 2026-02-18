@@ -9,6 +9,8 @@ def ensure_job_drive_columns(engine: Engine) -> None:
 
         existing = {row[1] for row in rows}
         additions = {
+            "mode": "VARCHAR(20) DEFAULT 'event'",
+            "overlay_image_path": "VARCHAR(255)",
             "drive_file_id": "VARCHAR(128)",
             "drive_link": "VARCHAR(500)",
             "download_link": "VARCHAR(500)",

@@ -15,7 +15,12 @@ def create_job_endpoint(
     db: Session = Depends(get_db),
 ):
     try:
-        job = create_job(db, payload.session_id)
+        job = create_job(
+            db,
+            payload.session_id,
+            mode=payload.mode,
+            overlay_url=payload.overlay_url,
+        )
     except ValueError as e:
         msg = str(e)
         if msg == "SESSION_NOT_FOUND":
@@ -24,11 +29,21 @@ def create_job_endpoint(
             raise HTTPException(400, "Theme not set")
         if msg == "PHOTO_NOT_UPLOADED":
             raise HTTPException(400, "Photo not uploaded")
+        if msg == "OVERLAY_INVALID":
+            raise HTTPException(400, "Overlay path is invalid")
+        if msg == "OVERLAY_NOT_FOUND":
+            raise HTTPException(404, "Overlay not found")
         raise
 
-    background.add_task(process_job_seeddream_safe, job.id)
+    background.add_task(process_job_seeddream_safe, job.id, payload.mode)
 
-    return JobOut(job_id=job.id, session_id=job.session_id, status=job.status)
+    return JobOut(
+        job_id=job.id,
+        session_id=job.session_id,
+        status=job.status,
+        mode=job.mode or "event",
+        overlay_url=job.overlay_image_path,
+    )
 
 @router.get("/{job_id}", response_model=JobOut)
 def get_job(job_id: int, db: Session = Depends(get_db)):
@@ -40,6 +55,8 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
         job_id=job.id,
         session_id=job.session_id,
         status=job.status,
+        mode=job.mode or "event",
+        overlay_url=job.overlay_image_path,
         result_url=job.result_image_path,
         drive_link=job.drive_link,
         download_link=job.download_link,

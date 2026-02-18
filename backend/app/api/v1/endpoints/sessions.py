@@ -40,6 +40,8 @@ def build_session_out(db: Session, s: PhotoSession) -> SessionOut:
             job_id=latest.id,
             session_id=latest.session_id,
             status=latest.status,
+            mode=latest.mode or "event",
+            overlay_url=latest.overlay_image_path,
             result_url=latest.result_image_path,
             error_message=latest.error_message,
         )
