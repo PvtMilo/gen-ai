@@ -48,10 +48,10 @@ onMounted(loadGallery);
 </script>
 
 <template>
-  <div class="page">
+  <div id="gallery">
     <div class="header">
-      <h1>Public Gallery</h1>
-      <button @click="handleHome">Home</button>
+      <h1>Gallery</h1>
+      <button class="btn" @click="handleHome">Home</button>
     </div>
 
     <p v-if="error" class="error">{{ error }}</p>
@@ -104,22 +104,38 @@ onMounted(loadGallery);
 </template>
 
 <style scoped>
-.page {
+#gallery {
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-items: center;
   gap: 16px;
+  max-height: 80vh;
+  min-height: 80vh;
 }
 
 .header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  font-size: 3rem;
+  color: white;
+}
+
+h1 {
+  margin-bottom: 1.5rem;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  /* grid-auto-flow :column ;
+  grid-auto-columns: 25%; */
   gap: 12px;
+  overflow-y: auto;
+  /* border: 3px solid white; */
+  margin: 3rem;
 }
 
 .tile {
@@ -211,3 +227,7 @@ onMounted(loadGallery);
   line-height: 1;
 }
 </style>
+
+
+
+

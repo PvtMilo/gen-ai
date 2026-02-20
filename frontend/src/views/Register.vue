@@ -64,7 +64,7 @@ onMounted(() => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 100vw;
+  width: 100%;
   font-size: 4rem;
   margin: 4em 0em 4em 0em;
 }
@@ -72,7 +72,7 @@ onMounted(() => {
 .input {
   display: flex;
   flex-direction: column;
-  width: 80%;
+  width: 75%;
   font-size: 7rem;
   gap: 4rem;
 }

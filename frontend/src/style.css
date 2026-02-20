@@ -19,11 +19,24 @@ html {
   font-size: 15px;
 }
 
+html,
+body,
+#app {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+#app {
+  min-height: 100vh;
+}
+
 body {
   /* 4. Add accessible line-height */
   line-height: 1.5;
   /* 5. Improve text rendering */
   -webkit-font-smoothing: antialiased;
+  background-color: rgb(255, 255, 255);
 }
 
 /* 6. Improve media defaults */
@@ -60,13 +73,13 @@ h1, h2, h3, h4, h5, h6 {
 /* Styling */
 
 .page{
+  width: 100%;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: rgb(212, 212, 212);
   justify-content: center;
   align-items: center;
-  border: 10px solid green;
   background-image: url(./assets/ui/bg.png);
 }
 
@@ -74,6 +87,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: row;  
   gap: 2rem;
+  margin-top: 3rem;
 }
 
 .btn{
@@ -84,7 +98,6 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
   font-size: 3rem;
   padding: 0rem 2rem 0rem 2rem ;
-  margin-top: 4rem;
   color: white;
 }
 

@@ -103,7 +103,7 @@ const handleBack = () => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 100vw;
+  width: 100%;
   font-size: 4rem;
   margin: 2em 0em 2em 0em;
 }
@@ -114,7 +114,6 @@ const handleBack = () => {
 
 .theme-slide {
   width: clamp(160px, 42vw, 420px);
-  border: 1px solid blue;
 }
 
 .card {

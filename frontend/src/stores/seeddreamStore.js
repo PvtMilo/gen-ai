@@ -33,6 +33,7 @@ export const useSeedDreamStore = defineStore("seeddream", {
     job: null,
     photoSource: "webcam",
     runMode: "event",
+    apiSource : "Native Byte",
     printerName: "",
     overlayUrl: null,
     overlayMeta: null,
@@ -55,6 +56,7 @@ export const useSeedDreamStore = defineStore("seeddream", {
         const j = localStorage.getItem("sd_job");
         const p = localStorage.getItem("sd_photo_source");
         const m = localStorage.getItem("sd_run_mode");
+        const a = localStorage.getItem("sd_api_source");
         const pn = localStorage.getItem("sd_printer_name");
         const o = localStorage.getItem("sd_overlay_url");
         const om = localStorage.getItem("sd_overlay_meta");
@@ -62,6 +64,7 @@ export const useSeedDreamStore = defineStore("seeddream", {
         if (j) this.job = JSON.parse(j);
         if (p) this.photoSource = p;
         if (m) this.runMode = normalizeRunMode(m);
+        if (a) this.apiSource = a;
         if (pn) this.printerName = pn;
         if (o) this.overlayUrl = o;
         if (om) this.overlayMeta = JSON.parse(om);
@@ -74,6 +77,7 @@ export const useSeedDreamStore = defineStore("seeddream", {
         localStorage.setItem("sd_job", JSON.stringify(this.job));
         localStorage.setItem("sd_photo_source", this.photoSource || "webcam");
         localStorage.setItem("sd_run_mode", this.runMode || "event");
+        localStorage.setItem("sd_api_source", this.apiSource || "native");
         localStorage.setItem("sd_printer_name", this.printerName || "");
         localStorage.setItem("sd_overlay_url", this.overlayUrl || "");
         localStorage.setItem("sd_overlay_meta", JSON.stringify(this.overlayMeta || null));
@@ -162,6 +166,13 @@ export const useSeedDreamStore = defineStore("seeddream", {
       this.runMode = normalizeRunMode(mode);
       this.persist();
       return this.runMode;
+    },
+
+    setApiSource(source) {
+      const allowed = ["native", "comfy"];
+      this.apiSource = allowed.includes(source) ? source : "native";
+      this.persist();
+      return this.apiSource;
     },
 
     setPrinterName(name) {

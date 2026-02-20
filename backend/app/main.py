@@ -9,10 +9,10 @@ from app.db.base import Base
 from app.db.ensure import ensure_job_drive_columns
 from app.core.config import UPLOADS_DIR, RESULTS_DIR, DATA_DIR, OVERLAYS_DIR
 
-# IMPORTANT: pastikan model ter-import sebelum create_all
 from app.modules.users.model import User  # noqa: F401
 from app.modules.sessions.model import PhotoSession  # noqa: F401
-# nanti tambah Job dll kalau sudah
+from contextlib import asynccontextmanager
+
 
 def ensure_dirs():
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -20,13 +20,21 @@ def ensure_dirs():
     OVERLAYS_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(title="AI Generative API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    ensure_dirs()
+    Base.metadata.create_all(bind=engine)
+    ensure_job_drive_columns(engine)
+    yield  
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",  # default Vite
+        "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -38,13 +46,6 @@ app.include_router(camera_router)
 
 # static mount
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-@app.on_event("startup")
-def on_startup():
-    ensure_dirs()
-    # DEV ONLY: create tables otomatis (nanti kalau sudah serius pindah ke Alembic)
-    Base.metadata.create_all(bind=engine)
-    ensure_job_drive_columns(engine)
 
 @app.get("/")
 def root():

@@ -7,6 +7,7 @@ import { getPrinters } from "../api/seeddream";
 const router = useRouter();
 const store = useSeedDreamStore();
 const selectedSource = ref(store.photoSource || "camera");
+const selectedApi = ref(store.apiSource || "comfy")
 const selectedMode = ref(store.runMode || "event");
 const selectedPrinter = ref(store.printerName || "");
 const selectedOverlayFile = ref(null);
@@ -31,7 +32,9 @@ const loadPrinters = async () => {
   printersError.value = "";
   try {
     const data = await getPrinters();
-    availablePrinters.value = Array.isArray(data?.printers) ? data.printers : [];
+    availablePrinters.value = Array.isArray(data?.printers)
+      ? data.printers
+      : [];
     if (data?.error_message) {
       printersError.value = data.error_message;
     }
@@ -55,6 +58,7 @@ const saveSetting = async () => {
 
   try {
     store.setPhotoSource(selectedSource.value);
+    store.setApiSource(selectedApi.value);
     store.setRunMode(selectedMode.value);
     store.setPrinterName(selectedPrinter.value);
 
@@ -85,10 +89,16 @@ onMounted(() => {
 
 <template>
   <section id="feature">
-    <button @click="handleHome">Home</button>
     <div class="form-wrapper">
-      <h1>Setting</h1>
+      <h1 class="setting">Setting</h1>
       <form @submit.prevent="saveSetting">
+        <section class="Api-option">
+          <label for="api">Select API</label>
+          <select id="api" name="api" v-model="selectedApi">
+            <option value="native">Native</option>
+            <option value="comfy">Comfy Ui</option>
+          </select>
+        </section>
         <section class="debug-option">
           <label for="mode">Select mode</label>
           <select id="mode" name="mode" v-model="selectedMode">
@@ -126,9 +136,17 @@ onMounted(() => {
               </option>
             </template>
           </select>
-          <button type="button" class="refresh-btn" @click="loadPrinters" :disabled="loadingPrinters">
-            {{ loadingPrinters ? "Refreshing..." : "Refresh printers" }}
-          </button>
+          <div class="refresh-wrapper">
+            <button
+              type="button"
+              class="refresh-btn btn"
+              @click="loadPrinters"
+              :disabled="loadingPrinters"
+            >
+              {{ loadingPrinters ? "Refreshing..." : "Refresh printers" }}
+            </button>
+          </div>
+
           <small v-if="printersError" class="error">{{ printersError }}</small>
         </section>
         <section class="overlay">
@@ -149,11 +167,14 @@ onMounted(() => {
         <p v-if="saveInfo">{{ saveInfo }}</p>
         <p v-if="saveError" class="error">{{ saveError }}</p>
         <div class="action-button">
-          <button class="btn" type="submit" :disabled="saving">
+          <button class="btn save" type="submit" :disabled="saving">
             {{ saving ? "Saving..." : "Save" }}
           </button>
         </div>
       </form>
+    </div>
+    <div class="home-wrapper">
+      <button class="btn" @click="handleHome">Home</button>
     </div>
   </section>
 </template>
@@ -171,7 +192,12 @@ onMounted(() => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background-color: rgb(100, 100, 100);
+  background-color: rgba(100, 100, 100, 0.171);
+  min-width: 80vw;
+}
+
+form {
+  max-width: 80vw;
 }
 
 section {
@@ -181,11 +207,13 @@ section {
 
 label,
 button,
-input,
-select,
-h1 {
+input {
   font-size: 3rem;
   color: white;
+}
+
+.setting {
+  font-size: 4rem;
 }
 
 option {
@@ -194,20 +222,36 @@ option {
 
 .action-button {
   display: flex;
-  flex-direction: column;
   justify-content: center;
-  align-items: center;
 }
 
-.btn {
-  width: 40%;
+.save {
+  width: 25%;
+}
+
+.refresh-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 1rem;
 }
 
 .refresh-btn {
-  font-size: 1.2rem;
+  font-size: 2.5rem;
 }
 
 .error {
   color: #c1121f;
+}
+
+.home-wrapper {
+  display: flex;
+  margin-top: 3rem;
+  width: 70%;
+  justify-content: center;
+}
+
+select {
+  font-size: 3rem;
 }
 </style>

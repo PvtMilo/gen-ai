@@ -263,6 +263,8 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  font-size: 2rem;
+  color: white;
 }
 
 .error {
