@@ -2,7 +2,14 @@ import { api } from "./client";
 
 export async function getThemes() {
   const res = await api.get("/themes");
+  console.log(res.data)
   return res.data; // array
+}
+
+export async function getThemesInternal() {
+  const res = await api.get("/themes/internal");
+  console.log(res.data)
+  return res.data; // array with prompt & negative_prompt
 }
 
 export async function startSession({ name, email, phone }) {

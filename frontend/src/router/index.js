@@ -8,6 +8,7 @@ import Loading from "../views/Loading.vue";
 import Result from "../views/Result.vue";
 import PublicGallery from "../views/PublicGallery.vue";
 import Setting from "../views/Setting.vue";
+import ThemeSetting from "../views/ThemeSetting.vue";
 
 const routes = [
   { path: "/", name: "Welcome", component: Welcome },
@@ -16,8 +17,9 @@ const routes = [
   { path: "/upload", name: "UploadPhoto", component: UploadPhoto },
   { path: "/loading", name: "Loading", component: Loading },
   { path: "/result", name: "Result", component: Result },
-  { path : "/public-gallery", name: "PublicGallery", component: PublicGallery},
-  {path : "/setting", name:"Setting", component: Setting}
+  { path: "/public-gallery", name: "PublicGallery", component: PublicGallery },
+  { path: "/setting", name: "Setting", component: Setting },
+  { path: "/theme-setting", name: "ThemeSetting", component: ThemeSetting },
 ];
 
 export default createRouter({

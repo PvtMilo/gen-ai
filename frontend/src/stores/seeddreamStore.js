@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import {
   getThemes,
+  getThemesInternal,
   startSession,
   setTheme,
   uploadPhoto as uploadPhotoApi,
@@ -114,6 +115,20 @@ export const useSeedDreamStore = defineStore("seeddream", {
         return this.themes;
       } catch (e) {
         this.error = extractErrorMessage(e, "LOAD_THEMES_FAILED");
+        throw e;
+      } finally {
+        this.loadingThemes = false;
+      }
+    },
+
+    async loadThemesInternal() {
+      this.loadingThemes = true;
+      this.error = null;
+      try {
+        this.themes = await getThemesInternal();
+        return this.themes;
+      } catch (e) {
+        this.error = extractErrorMessage(e, "LOAD_THEMES_FOR_INTERNAL_FAILED");
         throw e;
       } finally {
         this.loadingThemes = false;

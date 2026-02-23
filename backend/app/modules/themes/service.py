@@ -3,7 +3,7 @@ import json
 from typing import List, Optional
 
 from app.core.config import THEMES_JSON
-from app.modules.themes.schema import ThemeInternal, ThemePublicOut
+from app.modules.themes.schema import ThemeInternal, ThemePublicOut, ThemeInternalOut
 
 
 def _load_themes_internal() -> List[ThemeInternal]:
@@ -17,6 +17,10 @@ def _load_themes_internal() -> List[ThemeInternal]:
 
 def list_themes_public() -> List[ThemePublicOut]:
     return [t.to_public() for t in _load_themes_internal()]
+
+
+def list_themes_internal() -> List[ThemeInternalOut]:
+    return [t.to_internal() for t in _load_themes_internal()]
 
 
 def get_theme_by_id(theme_id: str) -> Optional[ThemeInternal]:

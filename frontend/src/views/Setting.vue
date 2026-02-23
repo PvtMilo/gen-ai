@@ -22,6 +22,10 @@ const handleHome = () => {
   router.push({ name: "Welcome" });
 };
 
+const handleThemeSetting = () => {
+  router.push({name : "ThemeSetting"})
+}
+
 const onOverlaySelected = (event) => {
   const file = event?.target?.files?.[0] || null;
   selectedOverlayFile.value = file;
@@ -173,8 +177,9 @@ onMounted(() => {
         </div>
       </form>
     </div>
-    <div class="home-wrapper">
+    <div class="bottom-btn-wrapper">
       <button class="btn" @click="handleHome">Home</button>
+      <button class="btn" @click="handleThemeSetting">Theme Setting</button>
     </div>
   </section>
 </template>
@@ -244,7 +249,7 @@ option {
   color: #c1121f;
 }
 
-.home-wrapper {
+.bottom-btn-wrapper {
   display: flex;
   margin-top: 3rem;
   width: 70%;
