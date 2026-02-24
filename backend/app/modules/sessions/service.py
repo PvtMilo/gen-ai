@@ -31,7 +31,7 @@ def set_session_theme(db: Session, session_id: int, theme_id: str) -> PhotoSessi
     if s is None:
         raise ValueError("SESSION_NOT_FOUND")
 
-    theme = get_theme_by_id(theme_id)
+    theme = get_theme_by_id(db, theme_id)
     if theme is None:
         raise ValueError("THEME_NOT_FOUND")
 

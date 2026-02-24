@@ -12,6 +12,29 @@ export async function getThemesInternal() {
   return res.data; // array with prompt & negative_prompt
 }
 
+export async function getThemeInternalById(themeId) {
+  const res = await api.get(`/themes/internal/${encodeURIComponent(themeId)}`);
+  return res.data; // single theme with prompt & negative_prompt
+}
+
+export async function createTheme(formData) {
+  const res = await api.post("/themes", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
+export async function updateTheme(themeId, formData) {
+  const res = await api.patch(`/themes/${encodeURIComponent(themeId)}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
+export async function deleteTheme(themeId) {
+  await api.delete(`/themes/${encodeURIComponent(themeId)}`);
+}
+
 export async function startSession({ name, email, phone }) {
   const res = await api.post("/sessions/start", { name, email, phone });
   return res.data; // SessionOut

@@ -10,6 +10,7 @@ PROJECT_DIR = APP_DIR.parent
 
 STATIC_DIR = APP_DIR / "static"
 UPLOADS_DIR = STATIC_DIR / "uploads"
+THUMBS_DIR = STATIC_DIR / "thumbs"
 CAPTURED_DIR = STATIC_DIR / "captured"
 OVERLAYS_DIR = STATIC_DIR / "overlays"
 # Folder asli tempat digiCamControl menyimpan foto dari kamera

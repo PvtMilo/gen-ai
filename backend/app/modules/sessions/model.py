@@ -8,7 +8,7 @@ class PhotoSession(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
 
-    theme_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    theme_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     input_image_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     status: Mapped[str] = mapped_column(String(20), default="draft")

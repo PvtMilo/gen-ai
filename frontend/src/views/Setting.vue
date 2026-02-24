@@ -118,7 +118,7 @@ onMounted(() => {
             <option value="manual">Manual Upload</option>
           </select>
         </section>
-        <section class="printer-options">
+        <!-- <section class="printer-options">
           <label for="printer">Select Printer</label>
           <select
             id="printer"
@@ -152,7 +152,7 @@ onMounted(() => {
           </div>
 
           <small v-if="printersError" class="error">{{ printersError }}</small>
-        </section>
+        </section> -->
         <section class="overlay">
           <label for="file">Choose Overlay</label>
           <input

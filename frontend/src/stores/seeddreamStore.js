@@ -1,5 +1,8 @@
 import { defineStore } from "pinia";
 import {
+  createTheme,
+  deleteTheme as deleteThemeApi,
+  getThemeInternalById,
   getThemes,
   getThemesInternal,
   startSession,
@@ -9,6 +12,7 @@ import {
   createJob,
   getJob,
   getSession,
+  updateTheme as updateThemeApi,
 } from "../api/seeddream";
 
 function extractErrorMessage(err, fallback = "UNKNOWN_ERROR") {
@@ -132,6 +136,76 @@ export const useSeedDreamStore = defineStore("seeddream", {
         throw e;
       } finally {
         this.loadingThemes = false;
+      }
+    },
+
+    async loadThemeInternalById(themeId) {
+      this.error = null;
+      try {
+        return await getThemeInternalById(themeId);
+      } catch (e) {
+        this.error = extractErrorMessage(e, "LOAD_THEME_DETAIL_FAILED");
+        throw e;
+      }
+    },
+
+    async addTheme(payload) {
+      this.error = null;
+      try {
+        const formData = new FormData();
+        formData.append("title", payload.title || "");
+        formData.append("prompt", payload.prompt || "");
+
+        if (payload.negativePrompt) {
+          formData.append("negative_prompt", payload.negativePrompt);
+        }
+
+        formData.append("aspect_ratio", payload.aspectRatio || "2:3");
+        formData.append("thumbnail", payload.thumbnailFile);
+
+        const created = await createTheme(formData);
+        await this.loadThemesInternal();
+        return created;
+      } catch (e) {
+        this.error = extractErrorMessage(e, "CREATE_THEME_FAILED");
+        throw e;
+      }
+    },
+
+    async updateTheme(themeId, payload) {
+      this.error = null;
+      try {
+        const formData = new FormData();
+        formData.append("title", payload.title || "");
+        formData.append("prompt", payload.prompt || "");
+
+        if (payload.negativePrompt) {
+          formData.append("negative_prompt", payload.negativePrompt);
+        }
+
+        formData.append("aspect_ratio", payload.aspectRatio || "2:3");
+
+        if (payload.thumbnailFile) {
+          formData.append("thumbnail", payload.thumbnailFile);
+        }
+
+        const updated = await updateThemeApi(themeId, formData);
+        await this.loadThemesInternal();
+        return updated;
+      } catch (e) {
+        this.error = extractErrorMessage(e, "UPDATE_THEME_FAILED");
+        throw e;
+      }
+    },
+
+    async deleteTheme(themeId) {
+      this.error = null;
+      try {
+        await deleteThemeApi(themeId);
+        await this.loadThemesInternal();
+      } catch (e) {
+        this.error = extractErrorMessage(e, "DELETE_THEME_FAILED");
+        throw e;
       }
     },
 

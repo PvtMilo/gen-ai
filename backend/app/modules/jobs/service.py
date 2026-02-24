@@ -281,7 +281,7 @@ def process_job_seeddream_safe(job_id: int, requested_mode: str | None = None) -
             log_line("failed: session not ready")
             return
 
-        theme = get_theme_by_id(session.theme_id)
+        theme = get_theme_by_id(db, session.theme_id)
         if not theme:
             mark_failed("Theme not found")
             log_line("failed: theme not found")
