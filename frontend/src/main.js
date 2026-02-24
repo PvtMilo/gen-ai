@@ -4,12 +4,14 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
 import { useSeedDreamStore } from "./stores/seeddreamStore";
+import PrimeVue from 'primevue/config';
+import Aura from "@primeuix/themes/aura";
 
 import "./style.css";
 
 const app = createApp(App);
-
 const pinia = createPinia();
+
 app.use(pinia);
 app.use(router);
 

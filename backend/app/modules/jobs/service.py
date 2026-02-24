@@ -143,6 +143,68 @@ def sync_drive_links(
 
     return results
 
+
+def upload_drive_link_for_job(
+    db: Session,
+    *,
+    job_id: int,
+    force: bool = False,
+) -> dict:
+    try:
+        from app.integrations.gdrive.client import get_drive_service
+        from app.integrations.gdrive.service import upload_file_to_drive
+    except Exception as e:
+        raise RuntimeError(f"GDRIVE_IMPORT_FAILED: {e}") from e
+
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise ValueError("JOB_NOT_FOUND")
+
+    if not job.result_image_path:
+        raise ValueError("RESULT_NOT_FOUND")
+
+    if (
+        not force
+        and job.drive_file_id
+        and job.drive_link
+        and job.qr_url
+    ):
+        return {
+            "job_id": job.id,
+            "result_url": job.result_image_path,
+            "drive_link": job.drive_link,
+            "download_link": job.download_link,
+            "qr_url": job.qr_url,
+            "uploaded": False,
+            "message": "already_uploaded",
+        }
+
+    rel = job.result_image_path.lstrip("/")
+    file_path = APP_DIR / rel
+    if not file_path.exists():
+        raise ValueError("RESULT_FILE_NOT_FOUND")
+
+    service = get_drive_service()
+    uploaded = upload_file_to_drive(file_path, service=service)
+
+    job.drive_file_id = uploaded.get("file_id")
+    job.drive_link = uploaded.get("drive_link")
+    job.download_link = uploaded.get("download_link")
+    job.qr_url = uploaded.get("qr_url")
+    job.drive_uploaded_at = datetime.utcnow()
+    db.commit()
+    db.refresh(job)
+
+    return {
+        "job_id": job.id,
+        "result_url": job.result_image_path,
+        "drive_link": job.drive_link,
+        "download_link": job.download_link,
+        "qr_url": job.qr_url,
+        "uploaded": True,
+        "message": "uploaded",
+    }
+
 def _generate_event_result(input_abs: Path, prompt: str, *, logger, started_at: float) -> Path:
     # Keep these steps isolated so overlay can be inserted later after this stage.
     logger("encoding image")

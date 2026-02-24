@@ -221,9 +221,9 @@ onBeforeUnmount(() => {
 });
 </script>
 <template>
-  <button @click="handleBack">BACK TO SETTING</button>
   <section id="ThemeSetting">
     <h1>THEME SETTING</h1>
+    <img class="exit" src="../assets/ui/exit.png" @click="handleBack" />
     <p v-if="actionError" class="error-message">
       {{ actionError }}
     </p>
@@ -441,5 +441,10 @@ label {
 .loading-message,
 .edit-note {
   color: white;
+}
+
+.exit {
+  padding-top: 1rem;
+  width: 100px;
 }
 </style>

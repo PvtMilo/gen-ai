@@ -264,10 +264,7 @@ function handleFinish() {
 
     <div v-if="isQrOpen" class="modal" @click.self="closeQrModal">
       <div class="modal-content">
-        <button class="modal-close" type="button" @click="closeQrModal">
-          x
-        </button>
-        <img v-if="qrImageUrl" :src="qrImageUrl" alt="QR Code" />
+        <img v-if="qrImageUrl" :src="qrImageUrl" @click="closeQrModal" alt="QR Code" />
         <p v-else class="muted">QR code belum tersedia.</p>
       </div>
     </div>

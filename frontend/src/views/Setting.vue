@@ -44,7 +44,7 @@ watch(
   () => {
     overlayPreviewBroken.value = false;
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 const handleOverlayPreviewError = () => {
@@ -72,8 +72,7 @@ const onOverlaySelected = async (event) => {
   if (!file) return;
 
   const isPng =
-    file.type === "image/png" ||
-    file.name?.toLowerCase?.().endsWith(".png");
+    file.type === "image/png" || file.name?.toLowerCase?.().endsWith(".png");
   if (!isPng) {
     overlayError.value = "Overlay must be PNG (.png)";
     selectedOverlayFile.value = null;
@@ -89,7 +88,8 @@ const onOverlaySelected = async (event) => {
     selectedOverlayFile.value = null;
     if (overlayInput.value) overlayInput.value.value = "";
   } catch (err) {
-    overlayError.value = store.error || err?.message || "Failed to upload overlay";
+    overlayError.value =
+      store.error || err?.message || "Failed to upload overlay";
   } finally {
     overlayUploading.value = false;
   }
@@ -217,12 +217,16 @@ onMounted(() => {
             @change="onOverlaySelected"
           />
           <small v-if="overlayUploading">Uploading overlay...</small>
-          <small v-if="selectedOverlayFile">Selected: {{ selectedOverlayFile.name }}</small>
+          <small v-if="selectedOverlayFile"
+            >Selected: {{ selectedOverlayFile.name }}</small
+          >
           <small v-if="overlayError" class="error">{{ overlayError }}</small>
 
           <template v-if="store.overlayUrl && !overlayPreviewBroken">
             <small v-if="store.overlayMeta">
-              Current overlay: {{ overlayFileName }} ({{ store.overlayMeta.width }}x{{ store.overlayMeta.height }})
+              Current overlay: {{ overlayFileName }} ({{
+                store.overlayMeta.width
+              }}x{{ store.overlayMeta.height }})
             </small>
             <small v-else>Current overlay: {{ overlayFileName }}</small>
             <img
@@ -233,22 +237,31 @@ onMounted(() => {
               @load="handleOverlayPreviewLoad"
             />
           </template>
-          <small v-else-if="store.overlayUrl && overlayPreviewBroken" class="error">
+          <small
+            v-else-if="store.overlayUrl && overlayPreviewBroken"
+            class="error"
+          >
             Saved overlay file is not available on server.
           </small>
         </section>
-        <p v-if="saveInfo">{{ saveInfo }}</p>
-        <p v-if="saveError" class="error">{{ saveError }}</p>
+        <div class="save-info">
+          <p v-if="saveInfo">{{ saveInfo }}</p>
+          <p v-if="saveError" class="error">{{ saveError }}</p>
+        </div>
         <div class="action-button">
-          <button class="btn save" type="submit" :disabled="saving || overlayUploading">
+          <button
+            class="btn save"
+            type="submit"
+            :disabled="saving || overlayUploading"
+          >
             {{ saving ? "Saving..." : "Save" }}
           </button>
         </div>
       </form>
     </div>
     <div class="bottom-btn-wrapper">
-      <button class="btn" @click="handleHome">Home</button>
       <button class="btn" @click="handleThemeSetting">Theme Setting</button>
+      <button class="btn" @click="handleHome">Home</button>
     </div>
   </section>
 </template>
@@ -277,6 +290,16 @@ form {
 section {
   display: flex;
   flex-direction: column;
+}
+
+.overlay {
+  padding-bottom: 1rem;
+}
+
+.save-info {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 1rem;
 }
 
 label,
@@ -321,8 +344,11 @@ option {
 .bottom-btn-wrapper {
   display: flex;
   margin-top: 3rem;
-  width: 70%;
+  width: 50%;
   justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 select {
@@ -331,7 +357,7 @@ select {
 
 .overlay-preview {
   width: min(300px, 60vw);
-  margin-top: 12px;
+  margin: 12px auto 0;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.3);
 }

@@ -40,6 +40,13 @@ export async function getDriveStatus() {
   return res.data;
 }
 
+export async function uploadDriveForJob(jobId, { force = false } = {}) {
+  const res = await api.post(`/drive/upload-job/${encodeURIComponent(jobId)}`, null, {
+    params: { force },
+  });
+  return res.data;
+}
+
 export async function startSession({ name, email, phone }) {
   const res = await api.post("/sessions/start", { name, email, phone });
   return res.data; // SessionOut

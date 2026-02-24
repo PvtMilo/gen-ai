@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { getGallery } from "../api/seeddream";
+import { getGallery, uploadDriveForJob } from "../api/seeddream";
 
 const router = useRouter();
 
@@ -9,6 +9,8 @@ const photos = ref([]);
 const loading = ref(false);
 const error = ref(null);
 const selectedPhoto = ref(null);
+const uploadingQr = ref(false);
+const uploadLog = ref("");
 
 const assetBase = (
   import.meta.env.VITE_ASSET_BASE || "http://127.0.0.1:8000"
@@ -19,6 +21,13 @@ const handleHome = () => {
 };
 
 const resolvePhotoUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  const prefix = url.startsWith("/") ? "" : "/";
+  return `${assetBase}${prefix}${url}`;
+};
+
+const resolveQrUrl = (url) => {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   const prefix = url.startsWith("/") ? "" : "/";
@@ -38,12 +47,55 @@ const loadGallery = async () => {
   }
 };
 
-const openModal = (photo) => {
+function patchPhotoDriveData(jobId, payload) {
+  const patch = {
+    drive_link: payload?.drive_link || null,
+    download_link: payload?.download_link || null,
+    qr_url: payload?.qr_url || null,
+  };
+
+  photos.value = photos.value.map((p) =>
+    p.id === jobId ? { ...p, ...patch } : p,
+  );
+
+  if (selectedPhoto.value?.id === jobId) {
+    selectedPhoto.value = { ...selectedPhoto.value, ...patch };
+  }
+}
+
+async function ensureSelectedPhotoQrUploaded() {
+  const photo = selectedPhoto.value;
+  if (!photo || photo.qr_url || uploadingQr.value) return;
+
+  uploadingQr.value = true;
+  uploadLog.value = "UPLOADING FILE.....";
+
+  try {
+    const uploaded = await uploadDriveForJob(photo.id);
+    patchPhotoDriveData(photo.id, uploaded);
+
+    if (!uploaded?.qr_url) {
+      uploadLog.value = "UPLOAD FAILED: QR URL is empty";
+    }
+  } catch (err) {
+    const detail =
+      err?.response?.data?.detail || err?.message || "Unknown upload error";
+    uploadLog.value = `UPLOAD FAILED: ${detail}`;
+  } finally {
+    uploadingQr.value = false;
+  }
+}
+
+const openModal = async (photo) => {
   selectedPhoto.value = photo;
+  uploadLog.value = "";
+  await ensureSelectedPhotoQrUploaded();
 };
 
 const closeModal = () => {
   selectedPhoto.value = null;
+  uploadingQr.value = false;
+  uploadLog.value = "";
 };
 
 onMounted(loadGallery);
@@ -53,7 +105,9 @@ onMounted(loadGallery);
   <div id="gallery">
     <div class="header">
       <h1>Gallery</h1>
-      <button class="btn" @click="handleHome">Home</button>
+      <div class="header-button">
+        <img class="exit-btn" src="../assets/ui/exit.png" @click="handleHome">
+      </div>
     </div>
 
     <p v-if="error" class="error">{{ error }}</p>
@@ -95,11 +149,19 @@ onMounted(loadGallery);
           <img
             v-if="selectedPhoto.qr_url"
             class="qr"
-            :src="selectedPhoto.qr_url"
+            :src="resolveQrUrl(selectedPhoto.qr_url)"
             alt="QR Code"
           />
-          <img v-else src="../assets/ui/loading.gif" class="loading" />
-          <span class="uploading-log" v-if="!selectedPhoto.qr_url">UPLOADING FILE</span>
+          <img
+            v-else-if="uploadingQr"
+            src="../assets/ui/loading.gif"
+            class="loading"
+          />
+          <span
+            class="uploading-log"
+            v-if="!selectedPhoto.qr_url && uploadLog"
+            >{{ uploadLog }}</span
+          >
           <button class="btn" type="button" @click="closeModal">BACK</button>
         </div>
       </div>
@@ -127,6 +189,28 @@ onMounted(loadGallery);
   color: white;
 }
 
+.header-button {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+}
+
+.switch-wrapper{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: 2rem;
+  gap: 1rem;
+}
+
+.switch {
+  transform: scale(1.4);
+  transform-origin: left center;
+}
+
 h1 {
   margin-bottom: 1.5rem;
 }
@@ -137,7 +221,7 @@ h1 {
   /* grid-auto-flow :column ;
   grid-auto-columns: 25%; */
   gap: 12px;
-  overflow-y: auto;
+  overflow-y: scroll;
   /* border: 3px solid white; */
   margin: 3rem;
 }
@@ -198,17 +282,17 @@ h1 {
   flex-direction: column;
   align-items: center;
   width: 40%;
-  background-color: white;
   gap: 2rem;
 }
 
-.loading{
+.loading {
   width: 200px;
 }
 
 .uploading-log {
   color: #c1121f;
   font-size: 1.2rem;
+  text-align: center;
 }
 
 .btn-link {
@@ -218,5 +302,9 @@ h1 {
   background: #111827;
   color: #ffffff;
   font-size: 14px;
+}
+
+.exit-btn {
+  width: 130px;
 }
 </style>

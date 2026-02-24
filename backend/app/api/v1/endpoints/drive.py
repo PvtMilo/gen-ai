@@ -13,7 +13,7 @@ from app.core.config import RESULTS_DIR
 from app.db.session import get_db
 from app.integrations.gdrive.client import get_credentials_status
 from app.integrations.gdrive.service import upload_file_to_drive
-from app.modules.jobs.service import sync_drive_links
+from app.modules.jobs.service import sync_drive_links, upload_drive_link_for_job
 
 router = APIRouter(prefix="/drive", tags=["drive"])
 logger = logging.getLogger(__name__)
@@ -27,6 +27,16 @@ class DriveStatusOut(BaseModel):
     has_refresh_token: bool = False
     refreshed: bool = False
     checked_at: str
+
+
+class DriveJobUploadOut(BaseModel):
+    job_id: int
+    result_url: str | None = None
+    drive_link: str | None = None
+    download_link: str | None = None
+    qr_url: str | None = None
+    uploaded: bool = False
+    message: str = "uploaded"
 
 
 @router.post("/sync")
@@ -51,6 +61,23 @@ def drive_status():
         status.get("expiry"),
     )
     return status
+
+
+@router.post("/upload-job/{job_id}", response_model=DriveJobUploadOut)
+def upload_job(job_id: int, force: bool = False, db: Session = Depends(get_db)):
+    try:
+        return upload_drive_link_for_job(db, job_id=job_id, force=force)
+    except ValueError as e:
+        msg = str(e)
+        if msg == "JOB_NOT_FOUND":
+            raise HTTPException(404, "Job not found")
+        if msg == "RESULT_NOT_FOUND":
+            raise HTTPException(400, "Job has no result image")
+        if msg == "RESULT_FILE_NOT_FOUND":
+            raise HTTPException(404, "Result file not found")
+        raise
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
 
 
 @router.post("/upload")
