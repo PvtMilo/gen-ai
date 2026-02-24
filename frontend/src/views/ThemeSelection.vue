@@ -67,6 +67,9 @@ const handleBack = () => {
       :space-between="12"
       :centered-slides="store.themes.length <= 2"
       :watch-overflow="true"
+      :allow-touch-move="store.themes.length > 1"
+      :simulate-touch="true"
+      :grab-cursor="store.themes.length > 1"
       :pagination="{ clickable: true }"
       @slideChange="onSlideChange"
       class="theme-swiper"
@@ -103,17 +106,23 @@ const handleBack = () => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 100%;
+  width: min(100vw, 1400px);
+  min-width: 0;
   font-size: 4rem;
   margin: 2em 0em 2em 0em;
+  padding: 0 10px;
 }
 
 .theme-swiper {
+  width: 100%;
+  max-width: 1200px;
   padding: 8px 8px 22px;
+  overflow: hidden;
+  touch-action: pan-y;
 }
 
 .theme-slide {
-  width: clamp(160px, 42vw, 420px);
+  width: clamp(180px, 34vw, 360px);
 }
 
 .card {
@@ -126,7 +135,6 @@ const handleBack = () => {
     transform 0.2s ease,
     box-shadow 0.2s ease,
     border-color 0.2s ease;
-    
 }
 
 .card.active {
@@ -148,6 +156,7 @@ const handleBack = () => {
   display: flex;
   justify-content: center;
 }
+
 .next:disabled {
   opacity: 0.4;
   cursor: not-allowed;
