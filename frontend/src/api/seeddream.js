@@ -35,6 +35,11 @@ export async function deleteTheme(themeId) {
   await api.delete(`/themes/${encodeURIComponent(themeId)}`);
 }
 
+export async function getDriveStatus() {
+  const res = await api.get("/drive/status");
+  return res.data;
+}
+
 export async function startSession({ name, email, phone }) {
   const res = await api.post("/sessions/start", { name, email, phone });
   return res.data; // SessionOut

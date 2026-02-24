@@ -10,7 +10,9 @@ const loading = ref(false);
 const error = ref(null);
 const selectedPhoto = ref(null);
 
-const assetBase = (import.meta.env.VITE_ASSET_BASE || "http://127.0.0.1:8000").replace(/\/$/, "");
+const assetBase = (
+  import.meta.env.VITE_ASSET_BASE || "http://127.0.0.1:8000"
+).replace(/\/$/, "");
 
 const handleHome = () => {
   router.push({ name: "Welcome" });
@@ -76,13 +78,12 @@ onMounted(loadGallery);
 
     <div v-if="selectedPhoto" class="modal" @click.self="closeModal">
       <div class="modal-content">
-        <button class="modal-close" type="button" @click="closeModal">x</button>
         <img
           :src="resolvePhotoUrl(selectedPhoto.url)"
           :alt="`Result ${selectedPhoto.id}`"
         />
-        <div v-if="selectedPhoto.drive_link || selectedPhoto.qr_url" class="modal-actions">
-          <a
+        <div class="modal-actions">
+          <!-- <a
             v-if="selectedPhoto.drive_link"
             class="btn-link"
             :href="selectedPhoto.drive_link"
@@ -90,13 +91,16 @@ onMounted(loadGallery);
             rel="noopener"
           >
             Drive Link
-          </a>
+          </a> -->
           <img
             v-if="selectedPhoto.qr_url"
             class="qr"
             :src="selectedPhoto.qr_url"
             alt="QR Code"
           />
+          <img v-else src="../assets/ui/loading.gif" class="loading" />
+          <span class="uploading-log" v-if="!selectedPhoto.qr_url">UPLOADING FILE</span>
+          <button class="btn" type="button" @click="closeModal">BACK</button>
         </div>
       </div>
     </div>
@@ -110,7 +114,7 @@ onMounted(loadGallery);
   justify-content: center;
   align-items: center;
   gap: 16px;
-  max-height: 80vh;
+  max-height: 88vh;
   min-height: 80vh;
 }
 
@@ -174,29 +178,37 @@ h1 {
 }
 
 .modal-content {
-  position: relative;
-  max-width: min(90vw, 960px);
-  max-height: 90vh;
+  max-width: 90%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  background-color: #4e4e4e71;
+  padding: 4rem;
+  gap: 2rem;
 }
 
-.modal-content img {
-  width: 100%;
+.modal-content {
+  width: 80%;
   height: auto;
-  max-height: 90vh;
-  border-radius: 12px;
-  display: block;
-  background: #111;
 }
 
 .modal-actions {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  margin-top: 12px;
+  width: 40%;
+  background-color: white;
+  gap: 2rem;
+}
+
+.loading{
+  width: 200px;
+}
+
+.uploading-log {
+  color: #c1121f;
+  font-size: 1.2rem;
 }
 
 .btn-link {
@@ -207,27 +219,4 @@ h1 {
   color: #ffffff;
   font-size: 14px;
 }
-
-.qr {
-  width: 160px;
-  height: 160px;
-}
-
-.modal-close {
-  position: absolute;
-  top: -12px;
-  right: -12px;
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  border: none;
-  background: #ffffff;
-  cursor: pointer;
-  font-size: 20px;
-  line-height: 1;
-}
 </style>
-
-
-
-

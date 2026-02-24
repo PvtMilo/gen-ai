@@ -1,16 +1,24 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useSeedDreamStore } from "../stores/seeddreamStore";
 import { getPrinters } from "../api/seeddream";
 
 const router = useRouter();
 const store = useSeedDreamStore();
+
+const assetBase = import.meta.env.VITE_ASSET_BASE || "http://127.0.0.1:8000";
+
 const selectedSource = ref(store.photoSource || "camera");
-const selectedApi = ref(store.apiSource || "comfy")
+const selectedApi = ref(store.apiSource || "comfy");
 const selectedMode = ref(store.runMode || "event");
 const selectedPrinter = ref(store.printerName || "");
 const selectedOverlayFile = ref(null);
+const overlayInput = ref(null);
+const overlayUploading = ref(false);
+const overlayError = ref("");
+const overlayPreviewBroken = ref(false);
+
 const saving = ref(false);
 const saveError = ref("");
 const saveInfo = ref("");
@@ -18,17 +26,73 @@ const loadingPrinters = ref(false);
 const printersError = ref("");
 const availablePrinters = ref([]);
 
+const overlayPreviewUrl = computed(() => {
+  const url = store.overlayUrl;
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${assetBase}${url}`;
+});
+
+const overlayFileName = computed(() => {
+  const url = store.overlayUrl || "";
+  const parts = url.split("/");
+  return parts[parts.length - 1] || "";
+});
+
+watch(
+  () => store.overlayUrl,
+  () => {
+    overlayPreviewBroken.value = false;
+  },
+  { immediate: true }
+);
+
+const handleOverlayPreviewError = () => {
+  overlayPreviewBroken.value = true;
+};
+
+const handleOverlayPreviewLoad = () => {
+  overlayPreviewBroken.value = false;
+};
+
 const handleHome = () => {
   router.push({ name: "Welcome" });
 };
 
 const handleThemeSetting = () => {
-  router.push({name : "ThemeSetting"})
-}
+  router.push({ name: "ThemeSetting" });
+};
 
-const onOverlaySelected = (event) => {
+const onOverlaySelected = async (event) => {
   const file = event?.target?.files?.[0] || null;
   selectedOverlayFile.value = file;
+  overlayError.value = "";
+  saveError.value = "";
+
+  if (!file) return;
+
+  const isPng =
+    file.type === "image/png" ||
+    file.name?.toLowerCase?.().endsWith(".png");
+  if (!isPng) {
+    overlayError.value = "Overlay must be PNG (.png)";
+    selectedOverlayFile.value = null;
+    if (overlayInput.value) overlayInput.value.value = "";
+    return;
+  }
+
+  overlayUploading.value = true;
+
+  try {
+    const uploaded = await store.uploadOverlay(file);
+    saveInfo.value = `Overlay saved: ${uploaded.width}x${uploaded.height}`;
+    selectedOverlayFile.value = null;
+    if (overlayInput.value) overlayInput.value.value = "";
+  } catch (err) {
+    overlayError.value = store.error || err?.message || "Failed to upload overlay";
+  } finally {
+    overlayUploading.value = false;
+  }
 };
 
 const loadPrinters = async () => {
@@ -66,19 +130,7 @@ const saveSetting = async () => {
     store.setRunMode(selectedMode.value);
     store.setPrinterName(selectedPrinter.value);
 
-    if (selectedOverlayFile.value) {
-      const isPng =
-        selectedOverlayFile.value.type === "image/png" ||
-        selectedOverlayFile.value.name?.toLowerCase?.().endsWith(".png");
-      if (!isPng) {
-        throw new Error("Overlay must be PNG (.png)");
-      }
-
-      const uploaded = await store.uploadOverlay(selectedOverlayFile.value);
-      saveInfo.value = `Overlay saved: ${uploaded.width}x${uploaded.height}`;
-    } else {
-      saveInfo.value = "Settings saved";
-    }
+    saveInfo.value = "Settings saved";
   } catch (err) {
     saveError.value = store.error || err?.message || "Failed to save settings";
   } finally {
@@ -157,21 +209,38 @@ onMounted(() => {
           <label for="file">Choose Overlay</label>
           <input
             id="file"
+            ref="overlayInput"
             type="file"
             name="overlay"
             accept=".png,image/png"
+            :disabled="overlayUploading"
             @change="onOverlaySelected"
           />
-          <small v-if="store.overlayMeta">
-            Current overlay: {{ store.overlayMeta.width }}x{{
-              store.overlayMeta.height
-            }}
+          <small v-if="overlayUploading">Uploading overlay...</small>
+          <small v-if="selectedOverlayFile">Selected: {{ selectedOverlayFile.name }}</small>
+          <small v-if="overlayError" class="error">{{ overlayError }}</small>
+
+          <template v-if="store.overlayUrl && !overlayPreviewBroken">
+            <small v-if="store.overlayMeta">
+              Current overlay: {{ overlayFileName }} ({{ store.overlayMeta.width }}x{{ store.overlayMeta.height }})
+            </small>
+            <small v-else>Current overlay: {{ overlayFileName }}</small>
+            <img
+              :src="overlayPreviewUrl"
+              class="overlay-preview"
+              alt="Current overlay"
+              @error="handleOverlayPreviewError"
+              @load="handleOverlayPreviewLoad"
+            />
+          </template>
+          <small v-else-if="store.overlayUrl && overlayPreviewBroken" class="error">
+            Saved overlay file is not available on server.
           </small>
         </section>
         <p v-if="saveInfo">{{ saveInfo }}</p>
         <p v-if="saveError" class="error">{{ saveError }}</p>
         <div class="action-button">
-          <button class="btn save" type="submit" :disabled="saving">
+          <button class="btn save" type="submit" :disabled="saving || overlayUploading">
             {{ saving ? "Saving..." : "Save" }}
           </button>
         </div>
@@ -258,5 +327,12 @@ option {
 
 select {
   font-size: 3rem;
+}
+
+.overlay-preview {
+  width: min(300px, 60vw);
+  margin-top: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 </style>

@@ -256,9 +256,10 @@ function handleFinish() {
       <img :src="resultUrl" style="max-width: 700px" />
     </div>
     <div class="action-button" >
-      <button v-if="singleQrCode" @click="openQrModal">QR code</button>
-      <img src="../assets/ui/done.png" @click="openFModal" style="max-width: 125px"/>
-      <img src="../assets/ui/print.png" @click="openPrintingModal" alt="print" >
+      <img v-if="singleQrCode" @click="openQrModal" src="../assets/ui/qrcode.png">
+      <img v-else  src="../assets/ui/loading.gif" alt="loading"/>
+      <img src="../assets/ui/done.png" @click="openFModal"/>
+      <img src="../assets/ui/print.png" @click="openPrintingModal" alt="print" />
     </div>
 
     <div v-if="isQrOpen" class="modal" @click.self="closeQrModal">
@@ -314,6 +315,12 @@ function handleFinish() {
 .action-button{
   display: flex;
   padding-top: 2rem;
+  gap: 1rem
+}
+
+.action-button > img {
+  max-width: 125px;
+  height: auto;
 }
 
 .modal {
@@ -364,4 +371,6 @@ function handleFinish() {
 .muted {
   color: #6b7280;
 }
+
+
 </style>

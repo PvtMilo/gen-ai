@@ -257,6 +257,7 @@ onMounted(async () => {
   flex-wrap: wrap;
   justify-content: center;
   gap: 1rem;
+  margin-top: 3rem;
 }
 
 .manual-upload {

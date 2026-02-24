@@ -202,7 +202,7 @@ defineExpose({ takePhoto, retakeCamera });
   width: 80%;
   aspect-ratio: 2 / 3;
   overflow: hidden;
-  border: 10px solid blue;
+  /* border: 10px solid blue; */
   position: relative;
 }
 
