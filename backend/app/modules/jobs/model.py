@@ -14,6 +14,7 @@ class Job(Base):
     overlay_image_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="queued")  # queued|processing|done|failed
     result_image_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    compressed_image_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
     log_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

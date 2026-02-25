@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.config import APP_DIR, RESULTS_DIR
+from app.core.config import APP_DIR, RESULTS_DIR, COMPRESSED_DIR
 from app.db.session import get_db
 from app.modules.jobs.model import Job
 from app.modules.sessions.model import PhotoSession
@@ -76,12 +76,19 @@ def _to_utc_naive_range(start_date: date, end_date: date) -> tuple[datetime, dat
 
 
 def _resolve_result_file(result_image_path: str) -> Path | None:
-    if not result_image_path or not result_image_path.startswith("/static/results/"):
+    if not result_image_path:
+        return None
+
+    root: Path | None = None
+    if result_image_path.startswith("/static/results/"):
+        root = RESULTS_DIR.resolve()
+    elif result_image_path.startswith("/static/compressed/"):
+        root = COMPRESSED_DIR.resolve()
+    else:
         return None
 
     abs_path = (APP_DIR / result_image_path.lstrip("/")).resolve()
-    root = RESULTS_DIR.resolve()
-    if root not in abs_path.parents:
+    if root != abs_path and root not in abs_path.parents:
         return None
     return abs_path
 
@@ -105,12 +112,13 @@ def _build_delete_plan(db: Session, *, start_utc: datetime, end_utc: datetime) -
     missing_files_count = 0
 
     for job in jobs:
-        if not job.result_image_path:
-            continue
-        resolved = _resolve_result_file(job.result_image_path)
-        if not resolved:
-            continue
-        result_files_set.add(str(resolved))
+        for image_path in (job.result_image_path, job.compressed_image_path):
+            if not image_path:
+                continue
+            resolved = _resolve_result_file(image_path)
+            if not resolved:
+                continue
+            result_files_set.add(str(resolved))
 
     for path_str in result_files_set:
         if not Path(path_str).exists():

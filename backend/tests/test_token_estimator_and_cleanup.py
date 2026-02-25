@@ -212,6 +212,72 @@ def test_event_maintenance_preview_and_execute_delete(
         db_check.close()
 
 
+def test_event_maintenance_execute_delete_includes_compressed_files(
+    client: TestClient,
+    db_session_factory,
+    tmp_path,
+    monkeypatch,
+):
+    _seed_event_data(db_session_factory)
+
+    db = db_session_factory()
+    try:
+        jobs = db.query(Job).order_by(Job.id.asc()).all()
+        for job in jobs:
+            if job.result_image_path == "/static/results/in-range-done.png":
+                job.compressed_image_path = "/static/compressed/in-range-done.jpg"
+            elif job.result_image_path == "/static/results/in-range-failed.png":
+                job.compressed_image_path = "/static/compressed/in-range-failed.jpg"
+        db.commit()
+    finally:
+        db.close()
+
+    app_root = tmp_path / "app"
+    results_dir = app_root / "static" / "results"
+    compressed_dir = app_root / "static" / "compressed"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    compressed_dir.mkdir(parents=True, exist_ok=True)
+
+    (results_dir / "in-range-done.png").write_bytes(b"done")
+    (results_dir / "in-range-failed.png").write_bytes(b"failed")
+    (compressed_dir / "in-range-done.jpg").write_bytes(b"compressed-done")
+    (compressed_dir / "in-range-failed.jpg").write_bytes(b"compressed-failed")
+
+    monkeypatch.setattr(event_maintenance, "APP_DIR", app_root)
+    monkeypatch.setattr(event_maintenance, "RESULTS_DIR", results_dir)
+    monkeypatch.setattr(event_maintenance, "COMPRESSED_DIR", compressed_dir)
+
+    preview_response = client.post(
+        "/api/v1/event-maintenance/preview-delete",
+        json={
+            "start_date": "2026-02-24",
+            "end_date": "2026-02-24",
+            "password": "event-cleanup-admin",
+        },
+    )
+    assert preview_response.status_code == 200
+    preview = preview_response.json()
+    assert preview["jobs_count"] == 2
+    assert preview["result_files_count"] == 4
+    assert preview["missing_files_count"] == 0
+
+    execute_response = client.post(
+        "/api/v1/event-maintenance/execute-delete",
+        json={
+            "start_date": "2026-02-24",
+            "end_date": "2026-02-24",
+            "password": "event-cleanup-admin",
+        },
+    )
+    assert execute_response.status_code == 200
+    body = execute_response.json()
+    assert body["jobs_deleted_count"] == 2
+    assert body["result_files_target_count"] == 4
+    assert body["result_files_deleted_count"] == 4
+    assert body["missing_files_count"] == 0
+    assert body["file_delete_warnings"] == []
+
+
 def test_event_maintenance_rejects_wrong_password(client: TestClient):
     response = client.post(
         "/api/v1/event-maintenance/preview-delete",

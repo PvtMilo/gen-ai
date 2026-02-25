@@ -377,21 +377,24 @@ def test_job_flow_fetches_prompt_from_database_theme(db_session_factory, tmp_pat
         db.close()
 
     results_dir = tmp_path / "app" / "static" / "results"
+    compressed_dir = tmp_path / "app" / "static" / "compressed"
     results_dir.mkdir(parents=True, exist_ok=True)
+    compressed_dir.mkdir(parents=True, exist_ok=True)
 
     seen = {"prompt": None}
 
     def fake_generate_event_result(input_abs, prompt, *, logger, started_at):
         seen["prompt"] = prompt
         output = results_dir / "generated.jpg"
-        output.write_bytes(b"generated")
+        Image.new("RGB", (2400, 3600), (120, 130, 140)).save(output, format="JPEG")
         return output
 
     monkeypatch.setattr(jobs_service, "SessionLocal", db_session_factory)
     monkeypatch.setattr(jobs_service, "APP_DIR", tmp_path / "app")
     monkeypatch.setattr(jobs_service, "RESULTS_DIR", results_dir)
+    monkeypatch.setattr(jobs_service, "COMPRESSED_DIR", compressed_dir)
     monkeypatch.setattr(jobs_service, "_generate_event_result", fake_generate_event_result)
-    monkeypatch.setattr(jobs_service, "_attach_drive_info", lambda _db, _job, _path: None)
+    monkeypatch.setattr(jobs_service, "_attach_drive_info", lambda *args, **kwargs: None)
 
     jobs_service.process_job_seeddream_safe(job_id, requested_mode="event")
 
@@ -403,5 +406,78 @@ def test_job_flow_fetches_prompt_from_database_theme(db_session_factory, tmp_pat
         assert stored is not None
         assert stored.status == "done"
         assert stored.result_image_path == "/static/results/generated.jpg"
+        assert stored.compressed_image_path == "/static/compressed/generated.jpg"
     finally:
         db_check.close()
+
+    compressed_file = compressed_dir / "generated.jpg"
+    assert compressed_file.exists()
+
+    with Image.open(compressed_file) as compressed:
+        assert compressed.format == "JPEG"
+        assert compressed.size == (1200, 1800)
+        dpi = compressed.info.get("dpi")
+        assert dpi is not None
+        assert dpi[0] == pytest.approx(600, abs=1.0)
+        assert dpi[1] == pytest.approx(600, abs=1.0)
+
+
+def test_resolve_drive_upload_path_prefers_compressed_then_falls_back(tmp_path, monkeypatch):
+    app_root = tmp_path / "app"
+    results_dir = app_root / "static" / "results"
+    compressed_dir = app_root / "static" / "compressed"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    compressed_dir.mkdir(parents=True, exist_ok=True)
+
+    raw_file = results_dir / "sample.png"
+    compressed_file = compressed_dir / "sample.jpg"
+    raw_file.write_bytes(b"raw")
+    compressed_file.write_bytes(b"compressed")
+
+    monkeypatch.setattr(jobs_service, "APP_DIR", app_root)
+    monkeypatch.setattr(jobs_service, "DRIVE_UPLOAD_SOURCE", "compressed")
+
+    job = Job(
+        session_id=1,
+        mode="event",
+        status="done",
+        result_image_path="/static/results/sample.png",
+        compressed_image_path="/static/compressed/sample.jpg",
+    )
+
+    selected_path, source = jobs_service._resolve_drive_upload_path(job)
+    assert selected_path == compressed_file
+    assert source == "compressed"
+
+    compressed_file.unlink()
+    selected_path, source = jobs_service._resolve_drive_upload_path(job)
+    assert selected_path == raw_file
+    assert source == "results"
+
+
+def test_resolve_drive_upload_path_uses_raw_when_configured(tmp_path, monkeypatch):
+    app_root = tmp_path / "app"
+    results_dir = app_root / "static" / "results"
+    compressed_dir = app_root / "static" / "compressed"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    compressed_dir.mkdir(parents=True, exist_ok=True)
+
+    raw_file = results_dir / "sample.png"
+    compressed_file = compressed_dir / "sample.jpg"
+    raw_file.write_bytes(b"raw")
+    compressed_file.write_bytes(b"compressed")
+
+    monkeypatch.setattr(jobs_service, "APP_DIR", app_root)
+    monkeypatch.setattr(jobs_service, "DRIVE_UPLOAD_SOURCE", "results")
+
+    job = Job(
+        session_id=1,
+        mode="event",
+        status="done",
+        result_image_path="/static/results/sample.png",
+        compressed_image_path="/static/compressed/sample.jpg",
+    )
+
+    selected_path, source = jobs_service._resolve_drive_upload_path(job)
+    assert selected_path == raw_file
+    assert source == "results"

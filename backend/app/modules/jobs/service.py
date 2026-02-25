@@ -15,6 +15,13 @@ from app.core.config import (
     APP_DIR,
     RESULTS_DIR,
     OVERLAYS_DIR,
+    COMPRESSED_DIR,
+    COMPRESSED_TARGET_SIZE,
+    COMPRESSED_FORMAT,
+    COMPRESSED_EXTENSION,
+    COMPRESSED_QUALITY,
+    COMPRESSED_DPI,
+    DRIVE_UPLOAD_SOURCE,
     SEEDDREAM_SIZE,
     SEEDDREAM_WATERMARK,
 )
@@ -73,7 +80,35 @@ def create_job(
     return job
 
 
-def _attach_drive_info(db: Session, job: Job, file_path: Path) -> None:
+def _resolve_job_static_path(static_path: str | None) -> Path | None:
+    if not static_path:
+        return None
+
+    rel = static_path.lstrip("/")
+    abs_path = (APP_DIR / rel).resolve()
+    app_root = APP_DIR.resolve()
+    if app_root not in abs_path.parents:
+        return None
+    return abs_path
+
+
+def _resolve_drive_upload_path(job: Job) -> tuple[Path, str]:
+    raw_path = _resolve_job_static_path(job.result_image_path)
+    compressed_path = _resolve_job_static_path(job.compressed_image_path)
+
+    if DRIVE_UPLOAD_SOURCE == "compressed":
+        if compressed_path and compressed_path.exists():
+            return compressed_path, "compressed"
+        if raw_path and raw_path.exists():
+            return raw_path, "results"
+        raise ValueError("RESULT_FILE_NOT_FOUND")
+
+    if raw_path and raw_path.exists():
+        return raw_path, "results"
+    raise ValueError("RESULT_FILE_NOT_FOUND")
+
+
+def _attach_drive_info(db: Session, job: Job) -> None:
     try:
         from app.integrations.gdrive.service import upload_file_to_drive
     except Exception as e:
@@ -81,6 +116,8 @@ def _attach_drive_info(db: Session, job: Job, file_path: Path) -> None:
         return
 
     try:
+        file_path, source = _resolve_drive_upload_path(job)
+        print(f"[JOB {job.id}] GDRIVE SOURCE: {source} path={file_path}")
         uploaded = upload_file_to_drive(file_path)
         job.drive_file_id = uploaded.get("file_id")
         job.drive_link = uploaded.get("drive_link")
@@ -89,7 +126,9 @@ def _attach_drive_info(db: Session, job: Job, file_path: Path) -> None:
         job.drive_uploaded_at = datetime.utcnow()
         db.commit()
         db.refresh(job)
-        print(f"[JOB {job.id}] GDRIVE OK: {job.drive_link}")
+        print(f"[JOB {job.id}] GDRIVE OK ({source}): {job.drive_link}")
+    except ValueError as e:
+        print(f"[JOB {job.id}] GDRIVE SKIPPED: {e}")
     except Exception as e:
         print(f"[JOB {job.id}] GDRIVE FAILED: {e}")
 
@@ -117,11 +156,12 @@ def sync_drive_links(
     results: list[dict] = []
 
     for job in query.all():
-        rel = job.result_image_path.lstrip("/")
-        file_path = APP_DIR / rel
-        if not file_path.exists():
+        try:
+            file_path, source = _resolve_drive_upload_path(job)
+        except ValueError:
             continue
 
+        print(f"[JOB {job.id}] DRIVE SYNC SOURCE: {source} path={file_path}")
         uploaded = upload_file_to_drive(file_path, service=service)
         job.drive_file_id = uploaded.get("file_id")
         job.drive_link = uploaded.get("drive_link")
@@ -179,11 +219,12 @@ def upload_drive_link_for_job(
             "message": "already_uploaded",
         }
 
-    rel = job.result_image_path.lstrip("/")
-    file_path = APP_DIR / rel
-    if not file_path.exists():
+    try:
+        file_path, source = _resolve_drive_upload_path(job)
+    except ValueError:
         raise ValueError("RESULT_FILE_NOT_FOUND")
 
+    print(f"[JOB {job.id}] DRIVE UPLOAD SOURCE: {source} path={file_path}")
     service = get_drive_service()
     uploaded = upload_file_to_drive(file_path, service=service)
 
@@ -293,6 +334,30 @@ def _bake_overlay(result_abs: Path, overlay_abs: Path, *, logger) -> Path:
     return out_path
 
 
+def _save_compressed_copy(final_result_abs: Path, *, logger) -> Path:
+    COMPRESSED_DIR.mkdir(parents=True, exist_ok=True)
+    output = COMPRESSED_DIR / f"{final_result_abs.stem}{COMPRESSED_EXTENSION}"
+
+    logger(
+        f"compression: target={COMPRESSED_TARGET_SIZE[0]}x{COMPRESSED_TARGET_SIZE[1]} "
+        f"format={COMPRESSED_FORMAT} quality={COMPRESSED_QUALITY}"
+    )
+    with Image.open(final_result_abs) as src:
+        src.load()
+        rgb = src.convert("RGB")
+        resized = rgb.resize(COMPRESSED_TARGET_SIZE, RESAMPLE_LANCZOS)
+        resized.save(
+            output,
+            format=COMPRESSED_FORMAT,
+            quality=COMPRESSED_QUALITY,
+            optimize=True,
+            dpi=COMPRESSED_DPI,
+        )
+
+    logger(f"compression: saved {output.name}")
+    return output
+
+
 def process_job_seeddream_safe(job_id: int, requested_mode: str | None = None) -> None:
     db: Session = SessionLocal()
     started_at = time.time()
@@ -389,6 +454,13 @@ def process_job_seeddream_safe(job_id: int, requested_mode: str | None = None) -
         else:
             log_line("overlay: skipped")
 
+        compressed_rel_path = None
+        try:
+            compressed_saved = _save_compressed_copy(saved, logger=log_line)
+            compressed_rel_path = f"/static/compressed/{compressed_saved.name}"
+        except Exception as e:
+            log_line(f"compression: failed ({e})")
+
         job2 = db.query(Job).filter(Job.id == job_id).first()
         if not job2:
             log_line("job missing before final commit")
@@ -397,12 +469,13 @@ def process_job_seeddream_safe(job_id: int, requested_mode: str | None = None) -
         job2.status = "done"
         job2.mode = mode
         job2.result_image_path = f"/static/results/{saved.name}"
+        job2.compressed_image_path = compressed_rel_path
         db.commit()
         db.refresh(job2)
 
         log_line("done")
 
-        _attach_drive_info(db, job2, saved)
+        _attach_drive_info(db, job2)
 
     except Exception as e:
         log_line(f"failed: {e}")

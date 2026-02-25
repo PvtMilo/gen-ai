@@ -11,7 +11,14 @@ from app.db.ensure import (
     ensure_photo_sessions_theme_index,
     ensure_themes_serial_id,
 )
-from app.core.config import UPLOADS_DIR, RESULTS_DIR, DATA_DIR, OVERLAYS_DIR, THUMBS_DIR
+from app.core.config import (
+    UPLOADS_DIR,
+    RESULTS_DIR,
+    DATA_DIR,
+    OVERLAYS_DIR,
+    THUMBS_DIR,
+    COMPRESSED_DIR,
+)
 from app.modules.themes.service import seed_themes_if_empty
 
 from app.modules.users.model import User  # noqa: F401
@@ -23,6 +30,7 @@ from contextlib import asynccontextmanager
 def ensure_dirs():
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    COMPRESSED_DIR.mkdir(parents=True, exist_ok=True)
     OVERLAYS_DIR.mkdir(parents=True, exist_ok=True)
     THUMBS_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)

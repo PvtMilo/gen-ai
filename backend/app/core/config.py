@@ -13,6 +13,7 @@ UPLOADS_DIR = STATIC_DIR / "uploads"
 THUMBS_DIR = STATIC_DIR / "thumbs"
 CAPTURED_DIR = STATIC_DIR / "captured"
 OVERLAYS_DIR = STATIC_DIR / "overlays"
+COMPRESSED_DIR = STATIC_DIR / "compressed"
 # Folder asli tempat digiCamControl menyimpan foto dari kamera
 # Default diset ke path yang kamu berikan, tapi bisa dioverride pakai env DIGICAM_ORIGINAL_DIR
 DIGICAM_ORIGINAL_DIR = Path(
@@ -34,6 +35,13 @@ DIGICAM_CAPTURE_CMD = os.getenv("DIGICAM_CAPTURE_CMD", "/?CMD=Capture")
 RESULTS_DIR = STATIC_DIR / "results"
 OVERLAY_ALLOWED_SIZES = {(1200, 1800), (2400, 3600)}
 
+# Compression output (manual edit points if needed)
+COMPRESSED_TARGET_SIZE = (1200, 1800)
+COMPRESSED_FORMAT = "JPEG"
+COMPRESSED_EXTENSION = ".jpg"
+COMPRESSED_QUALITY = 92
+COMPRESSED_DPI = (600, 600)
+
 THEMES_DIR = APP_DIR / "modules" / "themes" / "data"
 THEMES_JSON = THEMES_DIR / "themes.json"
 
@@ -50,8 +58,16 @@ def _env_bool(key: str, default: bool = False) -> bool:
     return val.strip().lower() in ("1", "true", "yes", "y", "on")
 
 
+def _normalize_drive_upload_source(value: str | None) -> str:
+    source = (value or "").strip().lower()
+    if source in {"results", "compressed"}:
+        return source
+    return "compressed"
+
+
 SEEDDREAM_SIZE = os.getenv("SEEDDREAM_SIZE", "2400x3600")
 SEEDDREAM_WATERMARK = _env_bool("SEEDDREAM_WATERMARK", True)
+DRIVE_UPLOAD_SOURCE = _normalize_drive_upload_source(os.getenv("DRIVE_UPLOAD_SOURCE", "compressed"))
 
 class Settings:
     DATABASE_URL: str = DATABASE_URL

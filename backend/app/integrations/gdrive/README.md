@@ -78,8 +78,12 @@ Supported variables:
 - `TARGET_FOLDER_ID`
   - Google Drive destination folder ID.
 - `LOCAL_FOLDER_PATH`
-  - Optional local folder for batch upload scanning.
+  - Optional local folder for batch upload scanning via `upload_results_folder()`.
   - If not set, falls back to backend static results folder.
+- `DRIVE_UPLOAD_SOURCE`
+  - Controls source file for job-based upload (`/drive/upload-job`, `/drive/sync`, auto upload after job done).
+  - Allowed values: `compressed` or `results`.
+  - Default: `compressed`.
 - `OAUTHLIB_INSECURE_TRANSPORT`
   - `1` allows local HTTP callback for development.
 - `API_BASE_URL`
@@ -152,6 +156,9 @@ Syncs existing completed jobs that have result files.
   - `limit` (optional)
   - `force` (optional, default false)
 - Uses `sync_drive_links()` from job service.
+- Upload source follows `DRIVE_UPLOAD_SOURCE`:
+  - `compressed`: tries `jobs.compressed_image_path`, fallback to `jobs.result_image_path`.
+  - `results`: uses `jobs.result_image_path`.
 - Updates job columns:
   - `drive_file_id`
   - `drive_link`
@@ -180,6 +187,7 @@ Drive upload also runs automatically after successful job processing:
 
 - `app/modules/jobs/service.py` -> `_attach_drive_info(...)`
 - Called after job status becomes `done`.
+- Upload source also follows `DRIVE_UPLOAD_SOURCE` (`compressed` or `results`).
 
 If upload fails, job stays done, but Drive fields can remain empty.
 You can later run `/api/v1/drive/sync`.

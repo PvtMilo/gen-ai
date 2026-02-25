@@ -11,6 +11,7 @@ def ensure_job_drive_columns(engine: Engine) -> None:
         additions = {
             "mode": "VARCHAR(20) DEFAULT 'event'",
             "overlay_image_path": "VARCHAR(255)",
+            "compressed_image_path": "VARCHAR(255)",
             "drive_file_id": "VARCHAR(128)",
             "drive_link": "VARCHAR(500)",
             "download_link": "VARCHAR(500)",
