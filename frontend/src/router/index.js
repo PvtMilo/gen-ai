@@ -9,6 +9,7 @@ import Result from "../views/Result.vue";
 import PublicGallery from "../views/PublicGallery.vue";
 import Setting from "../views/Setting.vue";
 import ThemeSetting from "../views/ThemeSetting.vue";
+import TokenEstimator from "../views/TokenEstimator.vue";
 
 const routes = [
   { path: "/", name: "Welcome", component: Welcome },
@@ -20,6 +21,7 @@ const routes = [
   { path: "/public-gallery", name: "PublicGallery", component: PublicGallery },
   { path: "/setting", name: "Setting", component: Setting },
   { path: "/theme-setting", name: "ThemeSetting", component: ThemeSetting },
+  { path: "/token-estimator", name: "TokenEstimator", component: TokenEstimator },
 ];
 
 export default createRouter({

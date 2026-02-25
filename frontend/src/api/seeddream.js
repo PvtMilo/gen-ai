@@ -47,6 +47,39 @@ export async function uploadDriveForJob(jobId, { force = false } = {}) {
   return res.data;
 }
 
+export async function getTokenEstimatorReport(startDate, endDate) {
+  const res = await api.get("/token-estimator/report", {
+    params: { start_date: startDate, end_date: endDate },
+  });
+  return res.data;
+}
+
+export async function exportTokenEstimatorCsv(startDate, endDate) {
+  const res = await api.get("/token-estimator/export.csv", {
+    params: { start_date: startDate, end_date: endDate },
+    responseType: "blob",
+  });
+  return res.data;
+}
+
+export async function previewEventDelete(startDate, endDate, password) {
+  const res = await api.post("/event-maintenance/preview-delete", {
+    start_date: startDate,
+    end_date: endDate,
+    password,
+  });
+  return res.data;
+}
+
+export async function executeEventDelete(startDate, endDate, password) {
+  const res = await api.post("/event-maintenance/execute-delete", {
+    start_date: startDate,
+    end_date: endDate,
+    password,
+  });
+  return res.data;
+}
+
 export async function startSession({ name, email, phone }) {
   const res = await api.post("/sessions/start", { name, email, phone });
   return res.data; // SessionOut

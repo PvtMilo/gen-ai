@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
@@ -14,6 +16,7 @@ class Job(Base):
     result_image_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
     log_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     drive_file_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     drive_link: Mapped[str | None] = mapped_column(String(500), nullable=True)

@@ -17,11 +17,31 @@ def ensure_job_drive_columns(engine: Engine) -> None:
             "qr_url": "VARCHAR(500)",
             "drive_uploaded_at": "DATETIME",
             "log_text": "TEXT",
+            "created_at": "DATETIME",
         }
 
         for name, col_type in additions.items():
             if name not in existing:
                 conn.exec_driver_sql(f"ALTER TABLE jobs ADD COLUMN {name} {col_type}")
+
+        # Backfill historical rows for reporting windows.
+        conn.exec_driver_sql(
+            """
+            UPDATE jobs
+            SET created_at = COALESCE(created_at, drive_uploaded_at, CURRENT_TIMESTAMP)
+            WHERE created_at IS NULL
+            """
+        )
+
+        index_rows = conn.exec_driver_sql("PRAGMA index_list(jobs)").fetchall()
+        index_existing = {row[1] for row in index_rows}
+        if "ix_jobs_event_report" not in index_existing:
+            conn.exec_driver_sql(
+                """
+                CREATE INDEX ix_jobs_event_report
+                ON jobs(mode, status, error_message, created_at)
+                """
+            )
 
 
 def ensure_photo_sessions_theme_index(engine: Engine) -> None:

@@ -23,7 +23,7 @@ const resultUrl = computed(() => {
 const singleQrCode = ref(null);
 const isQrOpen = ref(false);
 const isFmodalOpen = ref(false);
-const isPrintingModalOpen = ref(false)
+const isPrintingModalOpen = ref(false);
 
 const driveLink = computed(() => {
   return (
@@ -213,7 +213,8 @@ const confirmPrinting = () => {
 
   img.onload = triggerPrint;
   img.onerror = () => {
-    printWindow.document.body.innerHTML = "<p>Failed to load result image for printing.</p>";
+    printWindow.document.body.innerHTML =
+      "<p>Failed to load result image for printing.</p>";
   };
 
   if (img.complete) {
@@ -255,40 +256,49 @@ function handleFinish() {
     <div v-if="resultUrl">
       <img :src="resultUrl" style="max-width: 700px" />
     </div>
-    <div class="action-button" >
-      <img v-if="singleQrCode" @click="openQrModal" src="../assets/ui/qrcode.png">
-      <img v-else  src="../assets/ui/loading.gif" alt="loading"/>
-      <img src="../assets/ui/done.png" @click="openFModal"/>
-      <img src="../assets/ui/print.png" @click="openPrintingModal" alt="print" />
+    <div class="action-button">
+      <img
+        v-if="singleQrCode"
+        @click="openQrModal"
+        src="../assets/ui/qrcode.png"
+      />
+      <img v-else src="../assets/ui/loading.gif" alt="loading" />
+      <img src="../assets/ui/done.png" @click="openFModal" />
+      <img
+        src="../assets/ui/print.png"
+        @click="openPrintingModal"
+        alt="print"
+      />
     </div>
 
     <div v-if="isQrOpen" class="modal" @click.self="closeQrModal">
       <div class="modal-content">
-        <img v-if="qrImageUrl" :src="qrImageUrl" @click="closeQrModal" alt="QR Code" />
+        <img
+          v-if="qrImageUrl"
+          :src="qrImageUrl"
+          @click="closeQrModal"
+          alt="QR Code"
+        />
         <p v-else class="muted">QR code belum tersedia.</p>
       </div>
     </div>
 
     <div v-if="isFmodalOpen" class="modal">
       <div class="modal-content">
-        <button class="modal-close" type="button" @click="closeFModal">
-          x
-        </button>
+        <span>END THE SESSION ?</span>
         <div class="end-confirmation">
-          <button @click="handleFinish">YES</button>
-          <button @click="closeFModal">NO</button>
+          <button class="btn" @click="handleFinish">YES</button>
+          <button class="btn" @click="closeFModal">NO</button>
         </div>
       </div>
     </div>
 
     <div v-if="isPrintingModalOpen" class="modal">
       <div class="modal-content">
-        <button class="modal-close" type="button" @click="closePrintingModal">
-          x
-        </button>
+        <span>DO YOU WANT TO PRINT ?</span>
         <div class="end-confirmation">
-          <button @click="confirmPrinting">YES</button>
-          <button @click="closePrintingModal">NO</button>
+          <button class="btn" @click="confirmPrinting">YES</button>
+          <button class="btn" @click="closePrintingModal">NO</button>
         </div>
       </div>
     </div>
@@ -304,15 +314,15 @@ function handleFinish() {
   padding-bottom: 1rem;
 }
 
-.result-title{
+.result-title {
   color: white;
   font-size: 5rem;
 }
 
-.action-button{
+.action-button {
   display: flex;
   padding-top: 2rem;
-  gap: 1rem
+  gap: 1rem;
 }
 
 .action-button > img {
@@ -336,12 +346,12 @@ function handleFinish() {
   background: #ffffff;
   padding: 20px;
   border-radius: 12px;
-  max-width: min(90vw, 420px);
-  width: 100%;
+  width: 80%;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  font-size: 4rem;
 }
 
 .modal-content img {
@@ -369,5 +379,9 @@ function handleFinish() {
   color: #6b7280;
 }
 
+.end-confirmation {
+  display: flex;
+  gap: 1rem;
 
+}
 </style>
