@@ -1,6 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -13,7 +14,10 @@ router = APIRouter(prefix="/gallery", tags=["gallery"])
 def list_gallery(limit: Optional[int] = 100, db: Session = Depends(get_db)):
     query = (
         db.query(Job)
-        .filter(Job.status == "done", Job.result_image_path.isnot(None))
+        .filter(
+            Job.status == "done",
+            or_(Job.compressed_image_path.isnot(None), Job.result_image_path.isnot(None)),
+        )
         .order_by(Job.id.desc())
     )
 
@@ -22,12 +26,13 @@ def list_gallery(limit: Optional[int] = 100, db: Session = Depends(get_db)):
 
     items = []
     for job in query.all():
-        if not job.result_image_path:
+        image_url = job.compressed_image_path or job.result_image_path
+        if not image_url:
             continue
         items.append(
             {
                 "id": job.id,
-                "url": job.result_image_path,
+                "url": image_url,
                 "drive_link": job.drive_link,
                 "download_link": job.download_link,
                 "qr_url": job.qr_url,
