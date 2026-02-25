@@ -22,7 +22,14 @@ _client = Ark(
 )
 
 def generate_i2i_url(*, prompt: str, image_data_url: str, size: str = "4k", watermark: bool = False) -> str:
-    print("[SEEDDREAM REQUEST] model=", SEEDDREAM_MODEL, "watermark=", watermark)
+    print(
+        "[SEEDDREAM REQUEST] model=",
+        SEEDDREAM_MODEL,
+        "size=",
+        size,
+        "watermark=",
+        watermark,
+    )
 
     resp = _client.images.generate(
         model=SEEDDREAM_MODEL,

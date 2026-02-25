@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { nextTick, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useSeedDreamStore } from "../stores/seeddreamStore";
 
@@ -14,9 +14,17 @@ const assetBase = import.meta.env.VITE_ASSET_BASE || "http://127.0.0.1:8000";
 
 const selectedThemeId = ref(null);
 const hasPicked = ref(false);
+const themesReady = ref(false);
+const swiperRef = ref(null);
 
 onMounted(async () => {
-  await store.loadThemes();
+  try {
+    await store.loadThemes();
+    await nextTick();
+    swiperRef.value?.update?.();
+  } finally {
+    themesReady.value = true;
+  }
 });
 
 function thumbUrl(t) {
@@ -27,6 +35,18 @@ function onSlideChange() {
   //
 }
 
+function onSwiper(swiper) {
+  swiperRef.value = swiper;
+}
+
+watch(
+  () => store.themes.length,
+  async () => {
+    await nextTick();
+    swiperRef.value?.update?.();
+  },
+);
+
 function pickByClick(themeId) {
   selectedThemeId.value = themeId;
   hasPicked.value = true;
@@ -34,6 +54,11 @@ function pickByClick(themeId) {
 
 async function goNext() {
   if (!hasPicked.value || !selectedThemeId.value) return;
+  if (!store.session?.session_id) {
+    store.error = "Session not found. Please register again.";
+    router.push({ name: "Register" });
+    return;
+  }
 
   try {
     await store.chooseTheme(selectedThemeId.value);
@@ -62,15 +87,22 @@ const handleBack = () => {
 <template>
   <div id="themes">
     <h1 class="title">Select your themes</h1>
+    <p v-if="!themesReady || store.loadingThemes" class="helper">Loading themes...</p>
+    <p v-else-if="store.themes.length === 0" class="helper">No themes available.</p>
     <Swiper
+      v-else
+      :key="`themes-${store.themes.length}`"
       :slides-per-view="'auto'"
       :space-between="12"
       :centered-slides="store.themes.length <= 2"
       :watch-overflow="true"
+      :observer="true"
+      :observe-parents="true"
       :allow-touch-move="store.themes.length > 1"
       :simulate-touch="true"
       :grab-cursor="store.themes.length > 1"
       :pagination="{ clickable: true }"
+      @swiper="onSwiper"
       @slideChange="onSlideChange"
       class="theme-swiper"
     >
@@ -160,5 +192,11 @@ const handleBack = () => {
 .next:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.helper {
+  color: #fff;
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
 }
 </style>
