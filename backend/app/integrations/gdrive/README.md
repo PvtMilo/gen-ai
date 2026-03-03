@@ -125,6 +125,27 @@ cd backend
 3. Browser opens; login and consent.
 4. New `token.json` is saved automatically.
 
+### Generate Token (Quick Start)
+
+From repo root:
+
+```powershell
+cd backend
+.\.venv\Scripts\python -c "from app.integrations.gdrive.client import get_credentials; c = get_credentials(); print('Authorized:', c.valid)"
+```
+
+Check current token state:
+
+```powershell
+cd backend
+.\.venv\Scripts\python -c "from app.integrations.gdrive.client import get_credentials_status; print(get_credentials_status())"
+```
+
+Notes:
+
+- Default token path: `backend/app/integrations/gdrive/token.json`
+- If `.env` defines `TOKEN_FILE`, token will be written to that path instead.
+
 ## API Endpoints
 
 ### `POST /api/v1/drive/upload`

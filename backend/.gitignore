@@ -14,5 +14,5 @@ app/integrations/gdrive/client_secrets.json
 app/integrations/gdrive/token.json
 app/static/uploads/
 *.png
-!static/uploads/.keep
-!static/results/.keep
+!static/compressed/.keep
+app/static/compressed/

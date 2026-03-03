@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import {
   executeEventDelete,
   exportTokenEstimatorCsv,
@@ -159,6 +159,10 @@ async function onConfirmDelete() {
     executing.value = false;
   }
 }
+
+onMounted(() => {
+  loadReport()
+})
 </script>
 
 <template>
