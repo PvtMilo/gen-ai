@@ -4,6 +4,7 @@ import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 const props = defineProps({
   externalStream: { type: Object, default: null }, // MediaStream dari store
   autoStart: { type: Boolean, default: true },     // fallback kalau externalStream null
+  countdownSeconds: { type: Number, default: 3 },
 });
 
 const emit = defineEmits(["captured", "retake", "error"]);
@@ -11,6 +12,10 @@ const emit = defineEmits(["captured", "retake", "error"]);
 const videoDom = ref(null);
 const stream = ref(null);
 const previewUrl = ref(null);
+const countdown = ref(0);
+const isCapturing = ref(false);
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const stopInternal = () => {
   // hanya stop stream yang dibuat INTERNAL oleh komponen
@@ -72,7 +77,16 @@ onMounted(async () => {
   }
 });
 
-const takePhoto = async () => {
+const runCountdown = async () => {
+  const seconds = Math.max(0, Number(props.countdownSeconds) || 0);
+  for (let current = seconds; current > 0; current -= 1) {
+    countdown.value = current;
+    await sleep(1000);
+  }
+  countdown.value = 0;
+};
+
+const captureNow = async () => {
   try {
     const v = videoDom.value;
     if (!v || !stream.value) throw new Error("Webcam belum siap.");
@@ -155,8 +169,21 @@ const takePhoto = async () => {
   }
 };
 
+const takePhoto = async () => {
+  if (isCapturing.value) return;
+  isCapturing.value = true;
+  try {
+    await runCountdown();
+    await captureNow();
+  } finally {
+    countdown.value = 0;
+    isCapturing.value = false;
+  }
+};
+
 
 const retakeCamera = async () => {
+  countdown.value = 0;
   if (previewUrl.value) {
     URL.revokeObjectURL(previewUrl.value);
     previewUrl.value = null;
@@ -193,6 +220,7 @@ defineExpose({ takePhoto, retakeCamera });
       playsinline
       muted
     ></video>
+    <div v-if="countdown > 0 && !previewUrl" class="countdown-overlay">{{ countdown }}</div>
     <img v-else :src="previewUrl" />
   </div>
 </template>
@@ -222,6 +250,20 @@ defineExpose({ takePhoto, retakeCamera });
   object-fit: cover; /* atau contain, pilih sesuai kebutuhan */
   display: block;
   transform: none;
+}
+
+.countdown-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(5rem, 12vw, 9rem);
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.15);
+  pointer-events: none;
 }
 
 </style>
