@@ -174,18 +174,20 @@ const confirmPrinting = () => {
           html, body {
             margin: 0;
             padding: 0;
-            background: #fff;
           }
           .print-wrap {
-            width: 2400px;
-            height: 3600px;
+            width: 99.8%;
+            height: 100vh;
             margin: 0 auto;
+            overflow: hidden;
           }
+
           img {
             display: block;
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: cover;
+            object-position: center;
           }
         </style>
       </head>
@@ -382,6 +384,5 @@ function handleFinish() {
 .end-confirmation {
   display: flex;
   gap: 1rem;
-
 }
 </style>
